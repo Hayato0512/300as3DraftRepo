@@ -161,8 +161,16 @@ char *translate_type(int type)
 	return str;
 }
 
+bool isListNotEmpty(List *list){
+	if(List_count(list)!=0){
+		return true;
+	}
+	else{
+		return false;
+	}
+}
 // UNDERSTOOD. ready to implement
-void CPU_scheduler()
+void runNextProcess()
 {
 	PCB *p;
 	// 3 as we have 3 different ready queue.
@@ -171,25 +179,20 @@ void CPU_scheduler()
 
 	for (i = 0; i < num; i++)
 	{ // if ith ready queue is not empty,
-		if (List_count(readyQ[i]))
+		if (isListNotEmpty(readyQ[i]))
 		{
 			// get the last item
 			p = List_trim(readyQ[i]);
 			// add to runningQ
 			if (p)
 			{
-				status = List_append(runningQ, p);
+				// status = List_append(runningQ, p);
+				List_append(runningQ, p);
 				p->state = RUNNING;
+				printf("runNextProcess SUCCESS");
 			}
-
-			// display status messages
-			if (status == 0)
-			{
-				display("CPU Schedule SUCCESS");
-			}
-			else
-			{
-				display("CPU Schedule FAIL");
+			else{
+				printf("runNextProcess FAIL");
 			}
 			// exit loop
 			i = 99;
@@ -197,8 +200,8 @@ void CPU_scheduler()
 	}
 	// set init proc state
 	// if there was no process waiting, just set the init process as running one.
-	if (p = List_last(runningQ))
-	{
+	// if (p = List_last(runningQ))
+	// {
 		if (p->pid == 0)
 		{
 			p->state = RUNNING;
@@ -212,7 +215,7 @@ void CPU_scheduler()
 		// }
 
 		// reset_pm(p->msg);
-	}
+	// }
 }
 
 // find pid from a specified Q. easier than having to go through every single queue to find a specified PCB.
@@ -536,7 +539,7 @@ char *performExit()
 		p = 0;
 		numOfProcess--;
 		// get another process from readyQ running.
-		CPU_scheduler();
+		runNextProcess();
         }
         else{
 		printf("init core process killed. Terminating the program.\n");
@@ -584,7 +587,7 @@ void performQuantum()
 	//  }
 
 	// run cpu scheduler
-	CPU_scheduler();
+	runNextProcess();
 }
 
 // UNDERSTOOD, ready to implement
@@ -636,7 +639,7 @@ void send(int pid, char *msg)
 			// and put that into sendQ
 			List_insert_after(sendQ, p);
 			// and let the last item in the ready queue running
-			CPU_scheduler();
+			runNextProcess();
 		}
 	} // if we cann't find the specified pcb, set it as fail
 	else
@@ -683,7 +686,7 @@ void performReceive()
 			p->state = BLOCKED;
 			List_prepend(receiveQ, p);
 			// and let the next one run
-			CPU_scheduler();
+			runNextProcess();
 		}
 	}
 }
@@ -788,7 +791,7 @@ void P(int sid)
 		{
 			printf("pid: %i BLOCKED\n", p->pid);
 		}
-		CPU_scheduler();
+		runNextProcess();
 	}
 }
 
@@ -927,7 +930,7 @@ void performKill(){
 		//pass processId, and get the name of the list.
         resultReport = killProcess(processId, list);
         if(list == runningQ){
-            CPU_scheduler();
+            runNextProcess();
         }
     }
 }
