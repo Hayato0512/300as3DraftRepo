@@ -235,19 +235,12 @@ void *findpid_fromQ(int pid, List *list)
 	}
 }
 
-// returnObj = 1 // return Queue
-// returnObj = 2 // return PCB
-// UNDERSTOOD.
-void *findpid(int pid, int returnObj)
-{
+void *findListFromProcess(int processId){
+
 	int (*comparator)(void *, void *);
 	List *list = NULL;
 	Node *n = NULL;
-	// get the comparator
-	comparator = &compareitem;
-	// why resetQ? just to search through. not too important
-	resetQ_ptrs();
-	// if the wanted pcb is there, assign the pcb to n
+
 	if (n = List_search(readyQ[0], comparator, (void *)&pid))
 	{
 		list = readyQ[0];
@@ -291,21 +284,82 @@ void *findpid(int pid, int returnObj)
 			if (n = List_search(s->slist, comparator, (void *)&pid))
 			{ // set that semaphore list as returning list
 				list = s->slist;
+				i = 99;
+			}
+		}
+	}
+	return list;
+
+}
+// returnObj = 1 // return Queue
+// returnObj = 2 // return PCB
+// UNDERSTOOD.
+void *findpid(int pid)
+{
+	int (*comparator)(void *, void *);
+	List *list = NULL;
+	Node *n = NULL;
+	// get the comparator
+	comparator = &compareitem;
+	// why resetQ? just to search through. not too important
+	resetQ_ptrs();
+	// if the wanted pcb is there, assign the pcb to n
+	if (n = List_search(readyQ[0], comparator, (void *)&pid))
+	{
+		printf("found the specified pid in readyQ 0");
+		// list = readyQ[0];
+	}
+	else if (n = List_search(readyQ[1], comparator, (void *)&pid))
+	{
+		printf("found the specified pid in readyQ 1");
+		// list = readyQ[1];
+	}
+	else if (n = List_search(readyQ[2], comparator, (void *)&pid))
+	{
+		printf("found the specified pid in readyQ 2");
+		// list = readyQ[2];
+	}
+	else if (n = List_search(sendQ, comparator, (void *)&pid))
+	{
+		printf("found the specified pid in sendQ");
+		// list = sendQ;
+	}
+	else if (n = List_search(receiveQ, comparator, (void *)&pid))
+	{
+		printf("found the specified pid in receiveQ");
+		// list = receiveQ;
+	}
+	else if (n = List_search(runningQ, comparator, (void *)&pid))
+	{
+		printf("found the specified pid in runningQ");
+		// list = runningQ;
+	}
+	// if we need to search through semaphoreQ,
+	else if (List_count(semaphoreQ))
+	{
+		SEM *s;
+		int i, count;
+		// get the number of semaphores
+		count = List_count(semaphoreQ);
+		// don't we wanna do this to List_first?
+		List_prev(semaphoreQ);
+		for (i = 0; i < count; i++)
+		{
+			// start from first node of semaphoreQ and s->list
+			s = List_next(semaphoreQ);
+			// get the first item waiting on the semaphore
+			List_first(s->slist);
+			// if that pcb is what we are looking for,
+			if (n = List_search(s->slist, comparator, (void *)&pid))
+			{ // set that semaphore list as returning list
+		printf("found the specified pid in semaphoreQ");
+				// list = s->slist;
 				i = count;
 			}
 		}
 	}
 	// I need to know why we need to return either list or the pcb.
-	if (returnObj == RET_QUEUE)
-	{
-		return list;
-	}
-	if (returnObj == RET_PCB)
-	{
-		return n->pItem;
-	}
-
-	return NULL;
+	return n->pItem;
 }
 
 // To print all the information about the specified queue.
@@ -434,7 +488,8 @@ char *kill(int pid, List *list)
 	int fail = 1;
 
 	if (list)
-	{ // this will remove the current item in the specififed list.
+	{ // this will remove the current item in the specififed list.and current item is what we want to kill
+	//cuz after performingi list_search, the current pointer is pointing to the searched item. 
 		p = List_remove(list);
 		fail = 0;
 	}
@@ -567,7 +622,7 @@ void send(int pid, char *msg)
 		p->state = READY;
 		List_prepend(readyQ[p->priority], p);
 	} // else if we can find the pcb in somewhere else(which is not blocked)
-	else if (findpid(pid, RET_QUEUE))
+	else if (findpid(pid))
 	{ // allocate memory for the message
 		pm = malloc(sizeof pm);
 		// set the message to the message
@@ -775,7 +830,7 @@ void procinfo(int pid)
 	PCB *p;
 	char *state;
 
-	p = (PCB *)findpid(pid, RET_PCB);
+	p = (PCB *)findpid(pid);
 	if (p)
 	{
 
@@ -872,7 +927,12 @@ void performKill(){
     if(processId== 0 && numOfProcess !=0){
         printf("\n You can't kill the init core process.\n");
     }else{
-        list = findpid(processId, RET_QUEUE);
+		//instead of passing RET_QUEUE, just get the PCB returned, and 
+		//write a function to get which queue the PCB is in. 
+		PCB *p;
+        p = findpid(processId);
+		list = findListFromProcess(processId);
+		//pass processId, and get the name of the list.
         resultReport = kill(processId, list);
         if(list == runningQ){
             CPU_scheduler();
@@ -931,11 +991,11 @@ void promptUser(){
         userInputCmd = toupper(userInputCmd);
 
         if(userInputCmd =='C'){
-            performCreate();
+            performCreate(); //DONE
             // break;
         }
         else if(userInputCmd =='F'){
-            resultReport = forkProcess();
+            resultReport = forkProcess();//DONE
             // continue;
         }
         else if(userInputCmd =='K'){
