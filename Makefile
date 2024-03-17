@@ -1,4 +1,4 @@
 make:
-	gcc -ggdb -o sim list.o main.c 
+	gcc -ggdb -o sim list.o main2.c 
 clean:
 	rm sim
