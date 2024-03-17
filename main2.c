@@ -390,6 +390,7 @@ char *create(int priority)
 	p->msg = (PROC_MSG *)malloc(sizeof(PROC_MSG));
 	p->msg->body = (char *)malloc(sizeof(char) * 40);
 
+//heyheyhey
 	// add the newly created process to ready Q, when create a pcb, it will automatically go to readyQ
 	List_prepend(readyQ[priority], p);
 	// check if the list got a new item, and if so, success, if not fail.
