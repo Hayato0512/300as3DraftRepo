@@ -407,20 +407,24 @@ char *create(int priority)
 }
 
 // UNDERSTOOD.
-char *fork_cmd()
+char *forkProcess()
 { // create report, and pointer to the pcb
-	char *report;
-	PCB *p;
+	char *resultReport;
+	PCB *currentProcess;
 	// get the pointer to the curent item in the running Q
-	p = List_last(runningQ);
+	// currentProcess = List_last(runningQ);
 	// if the current running process is not null,
-	if (p)
+	if (currentProcess = List_last(runningQ))
 	{ // create a new pcb and put that in the ready Q
 		// report = create(p->priority, p->msg);
-		report = create(p->priority);
+		resultReport = create(currentProcess->priority);
+	}
+	else{
+		printf("FORK FAILED");
+		resultReport = "FORK FAILED";
 	}
 	// finally return the result report
-	return report;
+	return resultReport;
 }
 // UNDERSTOOD, ready to implement
 char *kill(int pid, List *list)
@@ -931,7 +935,7 @@ void promptUser(){
             // break;
         }
         else if(userInputCmd =='F'){
-            resultReport = fork_cmd();
+            resultReport = forkProcess();
             // continue;
         }
         else if(userInputCmd =='K'){
