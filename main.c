@@ -5,6 +5,7 @@
 #include <memory.h>
 #include "structures.h"
 
+// JUST NUMBERS TO USE, could be any number except MAX_SIZE
 #define MAX_SIZE 5000
 // states
 #define READY 100
@@ -20,21 +21,28 @@
 
 char *translate_type(int type);
 
+// place holder for every queue , to be initiated in main()
 List *readyQ[3];
 List *sendQ, *recvQ, *msgQ, *semQ, *runQ;
 
+// don't need
 int debug_msg = 1;
+// don't need
 int enable_printf = 1;
+// NEED THEM
 int numproc = 0;
 int proc_counter = 0;
 
 // function pointers
 
+// THIS NOT DOING ANYTHING
+// DONT NEED THIS GUY
 void freemem(void *x)
 {
 	printf("free mem: %c\n", *((char *)x));
 }
 
+// UNDERSTOOD, ready to implement
 int compareitem(void *item, void *compareArg)
 {
 	int *pid1, *pid2;
@@ -52,6 +60,8 @@ int compareitem(void *item, void *compareArg)
 }
 
 // functions
+// probably don't need this 'enable_printf' as this is always 1
+// UNDERSTOOD, ready to implement.
 void display(char *str)
 {
 	if (enable_printf)
@@ -60,14 +70,8 @@ void display(char *str)
 	}
 }
 
-// void debug(char *str)
-// {
-// 	if (debug_msg)
-// 	{
-// 		printf("%s\n", str);
-// 	}
-// }
-
+// just set the current item to the first item in every queue in order to do search p efficierntly
+// UNDERSTOOD. ready to implement
 void resetQ_ptrs()
 {
 	List_first(readyQ[0]);
@@ -79,6 +83,8 @@ void resetQ_ptrs()
 	List_first(semQ);
 }
 
+// reset the message
+// UNDERSTOOD. ready to implement.
 void reset_pm(PROC_MSG *pm)
 {
 	pm->src = -1;
@@ -87,6 +93,8 @@ void reset_pm(PROC_MSG *pm)
 	// memset(pm->body, (int) NULL, sizeof pm->body);
 }
 
+// function to display message
+// UNDERSTOOD. ready to implement.
 void display_pm(PROC_MSG *pm)
 {
 
@@ -98,6 +106,7 @@ void display_pm(PROC_MSG *pm)
 	display("-------");
 }
 
+// UNDERSTOOD, ready to implement
 char *translate_state(int state)
 {
 	char *str;
@@ -117,6 +126,7 @@ char *translate_state(int state)
 	return str;
 }
 
+// UNDERSTOOD, ready to implement
 char *translate_type(int type)
 {
 	char *str;
@@ -136,17 +146,19 @@ char *translate_type(int type)
 	return str;
 }
 
+// UNDERSTOOD. ready to implement
 void CPU_scheduler()
 {
 	PCB *p;
+	// 3 as we have 3 different ready queue.
 	int num = 3;
 	int i, status;
 
 	for (i = 0; i < num; i++)
-	{
+	{ // if ith ready queue is not empty,
 		if (List_count(readyQ[i]))
 		{
-			// take out item
+			// get the last item
 			p = List_trim(readyQ[i]);
 			// add to runQ
 			if (p)
@@ -169,6 +181,7 @@ void CPU_scheduler()
 		}
 	}
 	// set init proc state
+	// if there was no process waiting, just set the init process as running one.
 	if (p = List_last(runQ))
 	{
 		if (p->pid == 0)
@@ -177,6 +190,7 @@ void CPU_scheduler()
 		}
 		printf("pid: %i now running. \n", p->pid);
 
+		// we probably want to do this for every process that comes to running process(show the message if the currently running process has message)
 		if (strlen(p->msg->body) != 0)
 		{
 			display_pm(p->msg);
@@ -186,6 +200,8 @@ void CPU_scheduler()
 	}
 }
 
+// find pid from a specified Q. easier than having to go through every single queue to find a specified PCB.
+// UNDERSTOOD, ready to implement.
 void *findpid_fromQ(int pid, List *list)
 {
 	int (*comparator)(void *, void *);
@@ -206,16 +222,17 @@ void *findpid_fromQ(int pid, List *list)
 
 // returnObj = 1 // return Queue
 // returnObj = 2 // return PCB
+// UNDERSTOOD.
 void *findpid(int pid, int returnObj)
 {
 	int (*comparator)(void *, void *);
 	List *list = NULL;
 	Node *n = NULL;
-//get the comparator
+	// get the comparator
 	comparator = &compareitem;
-	//why resetQ? just to search through. not too important
+	// why resetQ? just to search through. not too important
 	resetQ_ptrs();
-	//if the wanted pcb is there, assign the pcb to n
+	// if the wanted pcb is there, assign the pcb to n
 	if (n = List_search(readyQ[0], comparator, (void *)&pid))
 	{
 		list = readyQ[0];
@@ -240,30 +257,30 @@ void *findpid(int pid, int returnObj)
 	{
 		list = runQ;
 	}
-	//if we need to search through semQ,
+	// if we need to search through semQ,
 	else if (List_count(semQ))
 	{
 		SEM *s;
 		int i, count;
-		//get the number of semaphores
+		// get the number of semaphores
 		count = List_count(semQ);
-		//don't we wanna do this to List_first?
+		// don't we wanna do this to List_first?
 		List_prev(semQ);
 		for (i = 0; i < count; i++)
 		{
 			// start from first node of semQ and s->list
 			s = List_next(semQ);
-			//get the first item waiting on the semaphore
+			// get the first item waiting on the semaphore
 			List_first(s->slist);
-			//if that pcb is what we are looking for, 
+			// if that pcb is what we are looking for,
 			if (n = List_search(s->slist, comparator, (void *)&pid))
-			{//set that semaphore list as returning list
+			{ // set that semaphore list as returning list
 				list = s->slist;
 				i = count;
 			}
 		}
 	}
-//I need to know why we need to return either list or the pcb. 
+	// I need to know why we need to return either list or the pcb.
 	if (returnObj == RET_QUEUE)
 	{
 		return list;
@@ -276,6 +293,8 @@ void *findpid(int pid, int returnObj)
 	return NULL;
 }
 
+// To print all the information about the specified queue.
+// UNDERSTOOD.
 void display_queue(List *list)
 {
 	void *ptr;
@@ -321,7 +340,7 @@ void display_queue(List *list)
 
 // maybe we don't need this pm in the parameter
 // cuz when we falk, I don't want to keep the message??
-//UNDERSTOOD and ready to implement
+// UNDERSTOOD and ready to implement
 char *create(int priority, PROC_MSG *pm)
 {
 	char *report;
@@ -336,22 +355,22 @@ char *create(int priority, PROC_MSG *pm)
 
 	size = List_count(readyQ[priority]);
 
-//what is the difference between numproc and proc_counter??
-//numproc is just the number of pcb at the moment
-//proc_counter is used to assign auto-incremented id to a new pcb. 
-//we wanna use both as killing a process will numProc -- but we want to keep increment for the new pcb id
+	// what is the difference between numproc and proc_counter??
+	// numproc is just the number of pcb at the moment
+	// proc_counter is used to assign auto-incremented id to a new pcb.
+	// we wanna use both as killing a process will numProc -- but we want to keep increment for the new pcb id
 	numproc++;
 	proc_counter++;
-	//allocate memory for the new PCB, 
+	// allocate memory for the new PCB,
 	PCB *p = malloc(sizeof(PCB));
 	p->pid = proc_counter;
 	p->priority = priority;
 	p->state = READY;
-//allocate memory for the messge section in the PCB
+	// allocate memory for the messge section in the PCB
 	p->msg = (PROC_MSG *)malloc(sizeof(PROC_MSG));
 	p->msg->body = (char *)malloc(sizeof(char) * 40);
 
-//I don't think we need this cuz we don't wanna inherit the message when folking
+	// I don't think we need this cuz we don't wanna inherit the message when folking
 	if (pm != NULL)
 	{
 		p->msg->dest = pm->dest;
@@ -363,9 +382,9 @@ char *create(int priority, PROC_MSG *pm)
 	{
 		reset_pm(p->msg);
 	}
-//add the newly created process to ready Q, when create a pcb, it will automatically go to readyQ
+	// add the newly created process to ready Q, when create a pcb, it will automatically go to readyQ
 	List_prepend(readyQ[priority], p);
-	//check if the list got a new item, and if so, success, if not fail. 
+	// check if the list got a new item, and if so, success, if not fail.
 	if (List_count(readyQ[priority]) == size + 1)
 	{
 		buf = "SUCCESS: pid";
@@ -379,25 +398,26 @@ char *create(int priority, PROC_MSG *pm)
 		report = "FAIL";
 		printf("FAIL\n");
 	}
-//at the end, return the result.
+	// at the end, return the result.
 	return report;
 }
 
+// UNDERSTOOD.
 char *fork_cmd()
-{//create report, and pointer to the pcb
+{ // create report, and pointer to the pcb
 	char *report;
 	PCB *p;
-//get the pointer to the curent item in the running Q
+	// get the pointer to the curent item in the running Q
 	p = List_last(runQ);
-//if the current running process is not null,
+	// if the current running process is not null,
 	if (p)
-	{//create a new pcb and put that in the ready Q
+	{ // create a new pcb and put that in the ready Q
 		report = create(p->priority, p->msg);
 	}
-//finally return the result report
+	// finally return the result report
 	return report;
 }
-//UNDERSTOOD, ready to implement
+// UNDERSTOOD, ready to implement
 char *kill(int pid, List *list)
 {
 	char *report;
@@ -405,14 +425,14 @@ char *kill(int pid, List *list)
 	int fail = 1;
 
 	if (list)
-	{//this will remove the current item in the specififed list.
+	{ // this will remove the current item in the specififed list.
 		p = List_remove(list);
 		fail = 0;
 	}
 
 	if (p && !fail)
 	{
-		//if success, free the memory of the removed pcb. 
+		// if success, free the memory of the removed pcb.
 		display("SUCCESS");
 		printf("pid:%i removed\n", p->pid);
 		free(p->msg->body);
@@ -431,24 +451,24 @@ char *kill(int pid, List *list)
 	return report;
 }
 
-//with "e", kill the current running process. 
-//UNDERSTOOD. ready to implement
+// with "e", kill the current running process.
+// UNDERSTOOD. ready to implement
 char *exit_curr()
 {
 	char *report;
 	PCB *p;
-	//get the currentrunning process
+	// get the currentrunning process
 	p = List_last(runQ);
-	//this condition check might be wrong. why numProc == 0?
-	// if numproc ==0, which means we only have init process(kernal)
-	//so this 'e' will work to terminate the whole program if no process. try it
-	//so i guess when init process is created, we don't do numproc++??
+	// this condition check might be wrong. why numProc == 0?
+	//  if numproc ==0, which means we only have init process(kernal)
+	// so this 'e' will work to terminate the whole program if no process. try it
+	// so i guess when init process is created, we don't do numproc++??
 	if (numproc == 0 || p->pid != 0)
 	{
-		//remove the currently running pcb
+		// remove the currently running pcb
 		p = List_trim(runQ);
 		printf("pid:%i removed\n", p->pid);
-		// free memory 
+		// free memory
 		free(p->msg->body);
 		free(p->msg);
 		free(p);
@@ -465,14 +485,14 @@ char *exit_curr()
 	}
 	return report;
 }
-//UNDERSTOOD
+// UNDERSTOOD
 void quantum()
 {
 	PCB *p;
 
 	// take item out of runQ
 	p = List_last(runQ);
-	//if the removed process is just a normal pcb (not init process)
+	// if the removed process is just a normal pcb (not init process)
 	if (p->pid != 0)
 	{
 		p = List_trim(runQ);
@@ -481,7 +501,7 @@ void quantum()
 		{
 			p->priority++;
 		}
-		//push the p into the ready queue to the front of the ready Q.
+		// push the p into the ready queue to the front of the ready Q.
 		p->state = READY;
 		// place on readyQ
 		if (p)
@@ -492,49 +512,49 @@ void quantum()
 			// printf("priority: %i\n", p->priority);
 		}
 	}
-	//why do we need this? what happen if we 'q' when no process
-	//we don't need this block.
-	// else
-	// {
-	// 	// reset init proc state
-	// 	p->state = READY;
-	// }
+	// why do we need this? what happen if we 'q' when no process
+	// we don't need this block.
+	//  else
+	//  {
+	//  	// reset init proc state
+	//  	p->state = READY;
+	//  }
 
 	// run cpu scheduler
 	CPU_scheduler();
 }
 
-//UNDERSTOOD, ready to implement
+// UNDERSTOOD, ready to implement
 void send(int pid, char *msg)
 {
 	PCB *run, *p;
 	PROC_MSG *pm;
 	int src;
 	int fail = 0;
-//get the currently running process
+	// get the currently running process
 	run = List_last(runQ);
-	//get the pid of the process in order to include it in the message
+	// get the pid of the process in order to include it in the message
 	src = run->pid;
 
-//if the receiver of the message is already waiting in the receive Queue, 
+	// if the receiver of the message is already waiting in the receive Queue,
 	if (p = findpid_fromQ(pid, recvQ))
 	{
-		//update the messge of the process
+		// update the messge of the process
 		p->msg->src = src;
 		p->msg->dest = pid;
 		p->msg->type = SEND;
-		//what does this strcpy do? ok just putting it
+		// what does this strcpy do? ok just putting it
 		strcpy(p->msg->body, msg);
 		// take out of recvQ
 		p = List_remove(recvQ);
 		// add to readyQ
 		p->state = READY;
 		List_prepend(readyQ[p->priority], p);
-	}//else if we can find the pcb in somewhere else(which is not blocked)
+	} // else if we can find the pcb in somewhere else(which is not blocked)
 	else if (findpid(pid, RET_QUEUE))
-	{//allocate memory for the message
+	{ // allocate memory for the message
 		pm = malloc(sizeof pm);
-		//set the message to the message
+		// set the message to the message
 		pm->body = (char *)malloc(sizeof(char) * 40);
 		pm->src = src;
 		pm->dest = pid;
@@ -546,16 +566,16 @@ void send(int pid, char *msg)
 		if (run->pid != 0)
 		{
 			// blk sender
-			//by getting the process running,
+			// by getting the process running,
 			p = List_trim(runQ);
-			//and block
+			// and block
 			p->state = BLOCKED;
-			//and put that into sendQ
+			// and put that into sendQ
 			List_insert_after(sendQ, p);
-			//and let the last item in the ready queue running
+			// and let the last item in the ready queue running
 			CPU_scheduler();
 		}
-	}//if we cann't find the specified pcb, set it as fail
+	} // if we cann't find the specified pcb, set it as fail
 	else
 	{
 		fail = 1;
@@ -572,20 +592,20 @@ void send(int pid, char *msg)
 }
 
 // RECEIVE
-//UNDERSTOOD
+// UNDERSTOOD
 void rx()
 {
 	PROC_MSG *pm;
 	PCB *p;
 	int dest;
-	//get the currently running item
+	// get the currently running item
 	p = List_last(runQ);
 	dest = p->pid;
 	// chk msgQ
 	// show msg, src
-	//if there's already a message waiting to be received for this guy, 
+	// if there's already a message waiting to be received for this guy,
 	if (pm = findpid_fromQ(dest, msgQ))
-	{//display the message, and remove the messge from queue
+	{ // display the message, and remove the messge from queue
 		display_pm(pm);
 		List_remove(msgQ);
 	}
@@ -595,23 +615,23 @@ void rx()
 		// put process on recvQ
 		// cpu sched
 		if (p->pid != 0)
-		{//take it out of running Q and then put that in receive queue
+		{ // take it out of running Q and then put that in receive queue
 			p = List_trim(runQ);
 			p->state = BLOCKED;
 			List_prepend(recvQ, p);
-			//and let the next one run
+			// and let the next one run
 			CPU_scheduler();
 		}
 	}
 }
 // REPLY
-//UNDERSTOOD how it's working.
+// UNDERSTOOD how it's working.
 void reply_cmd(int pid, char *msg)
 {
 	PCB *run, *p;
-//get the running process cuz he's wanting to reply, so we want his pid
+	// get the running process cuz he's wanting to reply, so we want his pid
 	run = List_last(runQ);
-//if the current process wants to reply to currently blocked sender,
+	// if the current process wants to reply to currently blocked sender,
 	if (p = findpid_fromQ(pid, sendQ))
 	{
 		// copy msg to sender's pcb
@@ -623,14 +643,14 @@ void reply_cmd(int pid, char *msg)
 		// unblock the blocked sender in sendQ
 		p = List_remove(sendQ);
 		p->state = READY;
-		//and insert the unblocked sender to the appropriete ready queue. 
+		// and insert the unblocked sender to the appropriete ready queue.
 		List_prepend(readyQ[p->priority], p);
 
 		display("REPLY SUCCESS");
 	}
-	//I think i need to modify here, cuz 
-	//a process can reply to a process that are not waiting at all. 
-	//FIX HERE.
+	// I think i need to modify here, cuz
+	// a process can reply to a process that are not waiting at all.
+	// FIX HERE.
 	else
 	{
 		// fail
@@ -639,7 +659,7 @@ void reply_cmd(int pid, char *msg)
 }
 
 //'n' to create a new semaphore.
-//UNDERSTOOD, ready to implement
+// UNDERSTOOD, ready to implement
 void new_sem(int sid)
 {
 	// init sem
@@ -671,6 +691,7 @@ void new_sem(int sid)
 	}
 }
 
+// UNDERSTOOD
 void P(int sid)
 {
 	SEM *s;
@@ -708,6 +729,7 @@ void P(int sid)
 	}
 }
 
+// UNDERSTOOD
 void V(int sid)
 {
 	SEM *s;
@@ -745,6 +767,7 @@ void V(int sid)
 	}
 }
 
+// UNDERSTOOD
 void procinfo(int pid)
 {
 	PCB *p;
@@ -768,6 +791,7 @@ void procinfo(int pid)
 	}
 }
 
+// UNDERSTOOD
 void totalinfo()
 {
 	PCB *p;
@@ -817,6 +841,7 @@ void totalinfo()
 	display("=========");
 }
 
+// UNDERSTOOD
 int main(int argc, const char *argv[])
 {
 	char *str;
@@ -887,11 +912,11 @@ int main(int argc, const char *argv[])
 				display("Cannot kill init process.");
 				break;
 			}
-			//this kill will kill the current process. why do we need to know the list?
-			//ok, we wanna know it because if the user kill the process in the running Q, we
-			//want to start the next process. 
-			//but if the pcb is in the other queue, we don't do CPU scheduling. 
-			//so that is why.
+			// this kill will kill the current process. why do we need to know the list?
+			// ok, we wanna know it because if the user kill the process in the running Q, we
+			// want to start the next process.
+			// but if the pcb is in the other queue, we don't do CPU scheduling.
+			// so that is why.
 			list = findpid(pid, RET_QUEUE);
 			report = kill(pid, list);
 			if (list && list == runQ)
