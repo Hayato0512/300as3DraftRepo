@@ -516,30 +516,33 @@ char *killProcess(int pid, List *list)
 // UNDERSTOOD. ready to implement
 char *performExit()
 {
-	char *report;
-	PCB *p;
+	char *resultReport;
+	PCB *currentProcess;
 	// get the currentrunning process
-	p = List_last(runningQ);
+	currentProcess = List_last(runningQ);
 	// this condition check might be wrong. why numProc == 0?
 	//  if numOfProcess ==0, which means we only have init process(kernal)
 	// so this 'e' will work to terminate the whole program if no process. try it
 	// so i guess when init process is created, we don't do numOfProcess++??
-	if (numOfProcess == 0 || p->pid != 0)
+	// if (numOfProcess == 0 || currentProcess->pid != 0)
+	if (currentProcess)
 	{
 		// remove the currently running pcb
-		p = List_trim(runningQ);
-		printf("pid:%i removed\n", p->pid);
+		currentProcess = List_trim(runningQ);
+		printf("pid:%i removed\n", currentProcess->pid);
 		// free memory
-        if(p->pid !=0){
-		free(p->msg->body);
-		free(p->msg);
-		free(p);
-		p->msg->body = 0;
-		p->msg = 0;
-		p = 0;
+        if(currentProcess->pid !=0){
+		free(currentProcess->msg->body);
+		free(currentProcess->msg);
+		free(currentProcess);
+		// currentProcess->msg->body = 0;
+		// currentProcess->msg = 0;
+		// currentProcess = 0;
 		numOfProcess--;
 		// get another process from readyQ running.
+		if(numOfProcess!=0){
 		runNextProcess();
+		}
         }
         else{
 		printf("init core process killed. Terminating the program.\n");
@@ -547,9 +550,9 @@ char *performExit()
 	}
 	else
 	{
-		display("Cannot exit init process.  Other processes waiting.");
+		printf("Exit the current process FAILED\n");
 	}
-	return report;
+	return resultReport;
 }
 // UNDERSTOOD
 void performQuantum()
@@ -994,7 +997,7 @@ void promptUser(){
             // continue;
         }
         else if(userInputCmd =='K'){
-            performKill();
+            performKill();//DONEDONEDONE
             // break;
         }
         else if(userInputCmd =='E'){
