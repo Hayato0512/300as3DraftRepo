@@ -241,27 +241,27 @@ void *findListFromProcess(int processId){
 	List *list = NULL;
 	Node *n = NULL;
 
-	if (n = List_search(readyQ[0], comparator, (void *)&pid))
+	if (n = List_search(readyQ[0], comparator, (void *)&processId))
 	{
 		list = readyQ[0];
 	}
-	else if (n = List_search(readyQ[1], comparator, (void *)&pid))
+	else if (n = List_search(readyQ[1], comparator, (void *)&processId))
 	{
 		list = readyQ[1];
 	}
-	else if (n = List_search(readyQ[2], comparator, (void *)&pid))
+	else if (n = List_search(readyQ[2], comparator, (void *)&processId))
 	{
 		list = readyQ[2];
 	}
-	else if (n = List_search(sendQ, comparator, (void *)&pid))
+	else if (n = List_search(sendQ, comparator, (void *)&processId))
 	{
 		list = sendQ;
 	}
-	else if (n = List_search(receiveQ, comparator, (void *)&pid))
+	else if (n = List_search(receiveQ, comparator, (void *)&processId))
 	{
 		list = receiveQ;
 	}
-	else if (n = List_search(runningQ, comparator, (void *)&pid))
+	else if (n = List_search(runningQ, comparator, (void *)&processId))
 	{
 		list = runningQ;
 	}
@@ -281,7 +281,7 @@ void *findListFromProcess(int processId){
 			// get the first item waiting on the semaphore
 			List_first(s->slist);
 			// if that pcb is what we are looking for,
-			if (n = List_search(s->slist, comparator, (void *)&pid))
+			if (n = List_search(s->slist, comparator, (void *)&processId))
 			{ // set that semaphore list as returning list
 				list = s->slist;
 				i = 99;
@@ -481,23 +481,16 @@ char *forkProcess()
 	return resultReport;
 }
 // UNDERSTOOD, ready to implement
-char *kill(int pid, List *list)
+char *killProcess(int pid, List *list)
 {
-	char *report;
+	char *resultReport;
 	PCB *p;
-	int fail = 1;
 
 	if (list)
-	{ // this will remove the current item in the specififed list.and current item is what we want to kill
+	{ // this will remove the current item in the specififed list.and current item is what we want to killProcess
 	//cuz after performingi list_search, the current pointer is pointing to the searched item. 
 		p = List_remove(list);
-		fail = 0;
-	}
-
-	if (p && !fail)
-	{
-		// if success, free the memory of the removed pcb.
-		display("SUCCESS");
+		resultReport = "SUCCESS";
 		printf("pid:%i removed\n", p->pid);
         if(p->pid !=0){
 		free(p->msg->body);
@@ -509,15 +502,14 @@ char *kill(int pid, List *list)
 		numOfProcess--;
         }
 	}
-	else
-	{
-		display("FAIL");
+	else{
+		resultReport = "FAIL";
 	}
 
-	return report;
+	return resultReport;
 }
 
-// with "e", kill the current running process.
+// with "e", killProcess the current running process.
 // UNDERSTOOD. ready to implement
 char *performExit()
 {
@@ -922,10 +914,10 @@ void performCreate(){
     resultReport = create(priority);
 }
 void performKill(){
-    printf("Enter the pid to kill: ");
+    printf("Enter the pid to killProcess: ");
     scanf("%d", &processId);
     if(processId== 0 && numOfProcess !=0){
-        printf("\n You can't kill the init core process.\n");
+        printf("\n You can't killProcess the init core process.\n");
     }else{
 		//instead of passing RET_QUEUE, just get the PCB returned, and 
 		//write a function to get which queue the PCB is in. 
@@ -933,7 +925,7 @@ void performKill(){
         p = findpid(processId);
 		list = findListFromProcess(processId);
 		//pass processId, and get the name of the list.
-        resultReport = kill(processId, list);
+        resultReport = killProcess(processId, list);
         if(list == runningQ){
             CPU_scheduler();
         }
