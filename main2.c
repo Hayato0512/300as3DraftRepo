@@ -45,8 +45,8 @@ int debug_msg = 1;
 // don't need
 int enable_printf = 1;
 // NEED THEM
-int numproc = 0;
-int proc_counter = 0;
+int numOfProcess = 0;
+int procAutoIncrement = 0;
 
 // function pointers
 
@@ -353,68 +353,56 @@ void display_queue(List *list)
 
 // commands
 
+bool isValidPriorityNumber(int priority){
+	if (priority < 0 || priority > 2)
+	{
+        return false;
+	}
+    else{
+        true;
+    }
+}
 // maybe we don't need this pm in the parameter
 // cuz when we falk, I don't want to keep the message??
 // UNDERSTOOD and ready to implement
-char *create(int priority, PROC_MSG *pm)
+char *create(int priority)
 {
-	char *report;
-	char *buf;
-	int size;
-	// PROC_MSG *pm;
+	char *resultReport;
+	int listSize;
 
-	if (priority < 0 || priority > 2)
+	//If the user input invalid number, set it to 2
+	if (!isValidPriorityNumber(priority))
 	{
 		priority = 2;
 	}
 
-	size = List_count(readyQ[priority]);
+	listSize = List_count(readyQ[priority]);
 
-	// what is the difference between numproc and proc_counter??
-	// numproc is just the number of pcb at the moment
-	// proc_counter is used to assign auto-incremented id to a new pcb.
-	// we wanna use both as killing a process will numProc -- but we want to keep increment for the new pcb id
-	numproc++;
-	proc_counter++;
-	// allocate memory for the new PCB,
+	numOfProcess++;
+	//for process id auto increment 
+	procAutoIncrement++;
+	// allocate memory for the new PCB
 	PCB *p = malloc(sizeof(PCB));
-	p->pid = proc_counter;
+	p->pid = procAutoIncrement;
 	p->priority = priority;
 	p->state = READY;
 	// allocate memory for the messge section in the PCB
 	p->msg = (PROC_MSG *)malloc(sizeof(PROC_MSG));
 	p->msg->body = (char *)malloc(sizeof(char) * 40);
 
-	// I don't think we need this cuz we don't wanna inherit the message when folking
-	if (pm != NULL)
-	{
-		p->msg->dest = pm->dest;
-		p->msg->src = pm->src;
-		p->msg->type = pm->type;
-		strcpy(p->msg->body, pm->body);
-	}
-	else
-	{
-		reset_pm(p->msg);
-	}
 	// add the newly created process to ready Q, when create a pcb, it will automatically go to readyQ
 	List_prepend(readyQ[priority], p);
 	// check if the list got a new item, and if so, success, if not fail.
-	if (List_count(readyQ[priority]) == size + 1)
+	if (List_count(readyQ[priority]) == (listSize + 1))
 	{
-		buf = "SUCCESS: pid";
-
-		// sprintf (report, "%s%i", buf, p->pid);
-
 		printf("SUCCESS: pid%i\n", p->pid);
 	}
 	else
 	{
-		report = "FAIL";
-		printf("FAIL\n");
+		resultReport = "PROCESS CREATION FAILED";
 	}
 	// at the end, return the result.
-	return report;
+	return resultReport;
 }
 
 // UNDERSTOOD.
@@ -427,7 +415,8 @@ char *fork_cmd()
 	// if the current running process is not null,
 	if (p)
 	{ // create a new pcb and put that in the ready Q
-		report = create(p->priority, p->msg);
+		// report = create(p->priority, p->msg);
+		report = create(p->priority);
 	}
 	// finally return the result report
 	return report;
@@ -457,7 +446,7 @@ char *kill(int pid, List *list)
 		p->msg->body = 0;
 		p->msg = 0;
 		p = 0;
-		numproc--;
+		numOfProcess--;
         }
 	}
 	else
@@ -477,10 +466,10 @@ char *performExit()
 	// get the currentrunning process
 	p = List_last(runningQ);
 	// this condition check might be wrong. why numProc == 0?
-	//  if numproc ==0, which means we only have init process(kernal)
+	//  if numOfProcess ==0, which means we only have init process(kernal)
 	// so this 'e' will work to terminate the whole program if no process. try it
-	// so i guess when init process is created, we don't do numproc++??
-	if (numproc == 0 || p->pid != 0)
+	// so i guess when init process is created, we don't do numOfProcess++??
+	if (numOfProcess == 0 || p->pid != 0)
 	{
 		// remove the currently running pcb
 		p = List_trim(runningQ);
@@ -493,7 +482,7 @@ char *performExit()
 		p->msg->body = 0;
 		p->msg = 0;
 		p = 0;
-		numproc--;
+		numOfProcess--;
 		// get another process from readyQ running.
 		CPU_scheduler();
         }
@@ -870,12 +859,12 @@ void initQueues(){
 void performCreate(){
     printf("Specify Process Priority (0, 1, 2): ");
     scanf("%d", &priority);
-    resultReport = create(priority, NULL);
+    resultReport = create(priority);
 }
 void performKill(){
     printf("Enter the pid to kill: ");
     scanf("%d", &processId);
-    if(processId== 0 && numproc !=0){
+    if(processId== 0 && numOfProcess !=0){
         printf("\n You can't kill the init core process.\n");
     }else{
         list = findpid(processId, RET_QUEUE);
