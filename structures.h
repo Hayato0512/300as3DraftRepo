@@ -9,6 +9,18 @@
 
 #include "list.h"
 
+// JUST NUMBERS TO USE, could be any number except MAX_SIZE
+#define MAX_SIZE 5000
+// states
+#define READY 1
+#define RUNNING 2
+#define BLOCKED 3
+
+// msg type
+#define SEND 4
+#define RECEIVE 5
+#define REPLY 6
+
 typedef struct proc_msg PROC_MSG;
 struct proc_msg
 {
