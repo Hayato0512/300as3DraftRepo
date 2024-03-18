@@ -745,7 +745,7 @@ void performReceive()
 }
 // REPLY
 // UNDERSTOOD how it's working.
-void reply_cmd(int pid, char *msg)
+void replyMessage(int pid, char *msg)
 {
 	PCB *runningProcess, *p;
 	// get the running process cuz he's wanting to reply, so we want his pid
@@ -772,8 +772,17 @@ void reply_cmd(int pid, char *msg)
 	// FIX HERE.
 	else
 	{
+		p = findProcess(pid);
+		if(p!=NULL){
+		p->msg->dest = pid;
+		p->msg->src = runningProcess->pid;
+		p->msg->type = REPLY;
+		strcpy(p->msg->body, msg);
+		}
+		else{
 		// fail
 		printf("\nREPLY FAIL\n");
+		}
 	}
 }
 
@@ -1035,7 +1044,7 @@ void performReply(){
     scanf("%d", &processId);
     printf("Enter reply message: ");
     scanf(" %[^\n]", messageBuf);
-    reply_cmd(processId, messageBuf);
+    replyMessage(processId, messageBuf);
 }
 
 //ORIGINAL
