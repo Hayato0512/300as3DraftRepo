@@ -8,18 +8,16 @@
 // JUST NUMBERS TO USE, could be any number except MAX_SIZE
 #define MAX_SIZE 5000
 // states
-#define READY 100
-#define RUNNING 101
-#define BLOCKED 102
-// returnObj
-#define RET_QUEUE 200
-#define RET_PCB 201
-// msg type
-#define SEND 300
-#define RECEIVE 301
-#define REPLY 302
+#define READY 1
+#define RUNNING 2
+#define BLOCKED 3
 
-char *translate_type(int type);
+// msg type
+#define SEND 4
+#define RECEIVE 5
+#define REPLY 6
+
+// char *getMessageTypeName(int type);
 
 char userInputCmd;
 char *resultReport;
@@ -108,6 +106,27 @@ void reset_pm(PROC_MSG *pm)
 	// memset(pm->body, (int) NULL, sizeof pm->body);
 }
 
+// UNDERSTOOD, ready to implement
+//IMPLEMENTED
+char *getMessageTypeName(int type)
+{
+	char *returnString;
+
+	if (type == SEND)
+	{
+		returnString = "Send";
+	}
+	else if (type == RECEIVE)
+	{
+		returnString = "Receive";
+	}
+	else if (type == REPLY)
+	{
+		returnString = "Reply";
+	}
+	return returnString;
+}
+
 // function to display message
 // UNDERSTOOD. ready to implement.
 void display_pm(PROC_MSG *pm)
@@ -115,51 +134,32 @@ void display_pm(PROC_MSG *pm)
 
 	display("-------");
 	display("Message Available:");
-	printf("Type: %s\n", translate_type(pm->type));
+	printf("Type: %s\n", getMessageTypeName(pm->type));
 	printf("From pid: %i - ", pm->src);
 	display(pm->body);
 	display("-------");
 }
 
 // UNDERSTOOD, ready to implement
-char *translate_state(int state)
+char *getStateName(int state)
 {
-	char *str;
+	char *returnString;
 
 	if (state == READY)
 	{
-		str = "Ready";
+		returnString = "Ready";
 	}
 	else if (state == RUNNING)
 	{
-		str = "Running";
+		returnString = "Running";
 	}
 	else if (state == BLOCKED)
 	{
-		str = "Blocked";
+		returnString = "Blocked";
 	}
-	return str;
+	return returnString;
 }
 
-// UNDERSTOOD, ready to implement
-char *translate_type(int type)
-{
-	char *str;
-
-	if (type == SEND)
-	{
-		str = "Send";
-	}
-	else if (type == RECEIVE)
-	{
-		str = "Receive";
-	}
-	else if (type == REPLY)
-	{
-		str = "Reply";
-	}
-	return str;
-}
 
 bool isListNotEmpty(List *list){
 	if(List_count(list)!=0){
@@ -916,28 +916,29 @@ void V(int sid)
 // UNDERSTOOD
 void procinfo(int pid)
 {
-	PCB *p;
+	PCB *process;
 	char *state;
 
-	printf("\n hey1 in PROCINFO");
-	p = findpid(pid);//i think it's becaues of the way findpid return stuff. cuz p is there. 
+	process = findpid(pid);//i think it's becaues of the way findpid return stuff. cuz p is there. 
 	// printf("\n in proc info after findPID, this is what i got %d", p->pid);
 	// P IS NOT NULL;m but accessing anythingi regarding p is null. 
-	if (p != NULL)
+	if (process != NULL)
 	{
-		printf("\n hey3");
-		state = translate_state(p->state);
-		display("=========");
-		printf("Proc Info for pid: %i\n", p->pid);
-		printf("Priority: %i\n", p->priority);
+		state = getStateName(process->state);
+		printf("\nPROCESS INFORMATION\n");
+		printf("\n______________________\n");
+		printf("Process Id: %i\n", process->pid);
+		printf("______________________\n");
+		printf("Priority: %i\n", process->priority);
+		printf("______________________\n");
 		printf("State: %s\n", state);
-		printf("Msg: %s\n", p->msg->body);
-		display("=========");
+		printf("______________________\n");
+		printf("Message: %s\n", process->msg->body);
+		printf("\n_________________\n");
 	}
 	else
 	{
-			printf("\n hey4");
-		printf("Cannot get Proc Info");
+		printf("PROCESS INFO ACQUISITION FAILED");
 	}
 }
 
@@ -950,9 +951,9 @@ void totalinfo()
 
 	// runningQ
 	p = List_last(runningQ);
-	state = translate_state(p->state);
+	state = getStateName(p->state);
 	display("=========");
-	display("RUN QUEUE");
+	display("RUN returnString");
 	printf("pid: %i\n", p->pid);
 
 	// readyQ
