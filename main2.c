@@ -661,18 +661,19 @@ void sendMessage(int pid, char *msg)
 
 // RECEIVE
 // UNDERSTOOD
+// IMPLEMENTED
 void performReceive()
 {
 	PROC_MSG *pm;
 	PCB *currentProcess;
-	int dest;
+	int destPid;
 	// get the currently running item
 	currentProcess = List_last(runningQ);
-	dest = currentProcess->pid;
+	destPid = currentProcess->pid;
 	// chk messageQ
 	// show msg, src
 	// if there's already a message waiting to be received for this guy,
-	if (pm = findpid_fromQ(dest, messageQ))
+	if (pm = findpid_fromQ(destPid, messageQ))
 	{ // display the message, and remove the messge from queue
 		display_pm(pm);
 		List_remove(messageQ);
@@ -726,36 +727,41 @@ void reply_cmd(int pid, char *msg)
 	}
 }
 
+bool isValidSemNumber(int sid){
+	if (sid >= 0 && sid <= 4){
+		return true;
+	}
+	else{
+		return false;
+	}
+}
+
 //'n' to create a new semaphore.
 // UNDERSTOOD, ready to implement
+//IMEPELEMTNED
 void new_sem(int sid)
 {
 	// init sem
 	SEM *s;
-	int fail = 1;
 	// if sid 0-5 AND does not already exist;
-	if (sid >= 0 && sid <= 4)
+	if (isValidSemNumber(sid))
 	{
 		if (!findpid_fromQ(sid, semaphoreQ))
 		{
 			s = malloc(sizeof(SEM));
 			s->sid = sid;
-			s->value = 0;
+			s->value = 1;
 			s->slist = List_create();
 			List_insert_after(semaphoreQ, s);
+			printf("SEM initialization SUCCESS");
 
-			fail = 0;
+		}
+		else{
+			printf("SEM initialization FAIL");
 		}
 	}
-
-	if (!fail)
-	{
-		display("SUCCESS");
-		printf("SEM %i initialized\n", sid);
-	}
-	else
-	{
-		display("FAIL");
+	else{
+			printf("SEM initialization FAIL");
 	}
 }
 
@@ -764,7 +770,6 @@ void P(int sid)
 {
 	SEM *s;
 	PCB *p;
-	int fail = 1;
 	int block = 0;
 
 	p = List_last(runningQ);
@@ -772,28 +777,18 @@ void P(int sid)
 	if (s && p->pid != 0)
 	{
 		s->value--;
-		if (s->value < 0)
+		if (s->value <= 0)
 		{
 			p = List_trim(runningQ);
 			p->state = BLOCKED;
 			List_prepend(s->slist, p);
-			fail = 0;
 			block = 1;
+			printf("P SUCCESS");
+			runNextProcess();
 		}
 	}
-
-	if (fail)
-	{
-		display("FAIL");
-	}
-	else
-	{
-		display("SUCCESS");
-		if (block)
-		{
-			printf("pid: %i BLOCKED\n", p->pid);
-		}
-		runNextProcess();
+	else{
+			printf("P FAIILED");
 	}
 }
 
@@ -1012,11 +1007,11 @@ void promptUser(){
             // break;
         }
         else if(userInputCmd =='R'){
-            performReceive();
+            performReceive();//DONE
             // break;
         }
         else if(userInputCmd =='Y'){
-            performReply();
+            performReply();//NEED TO FIX stuff
             // break;
         }
         else if(userInputCmd =='N'){
