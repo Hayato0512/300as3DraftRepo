@@ -170,52 +170,58 @@ bool isListNotEmpty(List *list){
 	}
 }
 // UNDERSTOOD. ready to implement
+// IMPLEMENTED
 void runNextProcess()
 {
-	PCB *p;
-	// 3 as we have 3 different ready queue.
-	int num = 3;
-	int i, status;
+	if(numOfProcess!=0){
+		PCB *p;
+		// 3 as we have 3 different ready queue.
+		int num = 3;
+		int i;
 
-	for (i = 0; i < num; i++)
-	{ // if ith ready queue is not empty,
-		if (isListNotEmpty(readyQ[i]))
-		{
-			// get the last item
-			p = List_trim(readyQ[i]);
-			// add to runningQ
-			if (p)
+		for (i = 0; i < num; i++)
+		{ // if ith ready queue is not empty,
+			if (isListNotEmpty(readyQ[i]))
 			{
-				// status = List_append(runningQ, p);
-				List_append(runningQ, p);
-				p->state = RUNNING;
-				printf("runNextProcess SUCCESS");
+				// get the last item
+				p = List_trim(readyQ[i]);
+				// add to runningQ
+				if (p)
+				{
+					List_append(runningQ, p);
+					p->state = RUNNING;
+					printf("runNextProcess SUCCESS");
+				}
+				else{
+					printf("runNextProcess FAIL");
+				}
+				// exit loop
+				i = 99;
 			}
-			else{
-				printf("runNextProcess FAIL");
-			}
-			// exit loop
-			i = 99;
 		}
-	}
-	// set init proc state
-	// if there was no process waiting, just set the init process as running one.
-	// if (p = List_last(runningQ))
-	// {
-		if (p->pid == 0)
-		{
-			p->state = RUNNING;
-		}
-		printf("pid: %i now running. \n", p->pid);
-
-		// we probably want to do this for every process that comes to running process(show the message if the currently running process has message)
-		// if (strlen(p->msg->body) != 0)
+		// set init proc state
+		// if there was no process waiting, just set the init process as running one.
+		// if (p = List_last(runningQ))
 		// {
-		// 	display_pm(p->msg);
+			if (p->pid == 0)
+			{
+				p->state = RUNNING;
+			}
+			printf("pid: %i now running. \n", p->pid);
+
+			// we probably want to do this for every process that comes to running process(show the message if the currently running process has message)
+			// if (strlen(p->msg->body) != 0)
+			// {
+			// 	display_pm(p->msg);
+			// }
+
+			// reset_pm(p->msg);
 		// }
 
-		// reset_pm(p->msg);
-	// }
+	}
+	else{
+		printf("Only the initial process is running. cannot quantum.\n");
+	}
 }
 
 // find pid from a specified Q. easier than having to go through every single queue to find a specified PCB.
@@ -514,17 +520,14 @@ char *killProcess(int pid, List *list)
 
 // with "e", killProcess the current running process.
 // UNDERSTOOD. ready to implement
+//IMPLEMENTED
 char *performExit()
 {
 	char *resultReport;
 	PCB *currentProcess;
 	// get the currentrunning process
 	currentProcess = List_last(runningQ);
-	// this condition check might be wrong. why numProc == 0?
-	//  if numOfProcess ==0, which means we only have init process(kernal)
-	// so this 'e' will work to terminate the whole program if no process. try it
-	// so i guess when init process is created, we don't do numOfProcess++??
-	// if (numOfProcess == 0 || currentProcess->pid != 0)
+
 	if (currentProcess)
 	{
 		// remove the currently running pcb
@@ -554,32 +557,34 @@ char *performExit()
 	}
 	return resultReport;
 }
+
+void decreasePriority(PCB *p){
+	if (p->priority < 2)
+	{
+		p->priority++;
+	}
+}
 // UNDERSTOOD
+// IMPLEMENTED
 void performQuantum()
 {
-	PCB *p;
+	PCB *currentProcess;
 
 	// take item out of runningQ
-	p = List_last(runningQ);
+	currentProcess = List_last(runningQ);
 	// if the removed process is just a normal pcb (not init process)
-	if (p->pid != 0)
+	if (currentProcess->pid != 0)
 	{
-		p = List_trim(runningQ);
-		// descrease priority
-		if (p->priority < 2)
-		{
-			p->priority++;
-		}
-		// push the p into the ready queue to the front of the ready Q.
-		p->state = READY;
-		// place on readyQ
-		if (p)
-		{
-			List_prepend(readyQ[p->priority], p);
+		currentProcess = List_trim(runningQ);
 
-			printf("pid: %i placed on ready queue.\n", p->pid);
-			// printf("priority: %i\n", p->priority);
-		}
+		decreasePriority(currentProcess);
+
+		// push the p into the ready queue to the front of the ready Q.
+		currentProcess->state = READY;
+		// place on readyQ
+		List_prepend(readyQ[currentProcess->priority], currentProcess);
+
+		printf("pid: %i placed on ready queue.\n", currentProcess->pid);
 	}
 	// why do we need this? what happen if we 'q' when no process
 	// we don't need this block.
@@ -589,27 +594,28 @@ void performQuantum()
 	//  	p->state = READY;
 	//  }
 
-	// run cpu scheduler
+	// runningProcess cpu scheduler
 	runNextProcess();
 }
 
 // UNDERSTOOD, ready to implement
-void send(int pid, char *msg)
+// IMPLEMENTED, but I need to fix the seg fault. 
+void sendMessage(int pid, char *msg)
 {
-	PCB *run, *p;
+	PCB *runningProcess, *p;
 	PROC_MSG *pm;
-	int src;
-	int fail = 0;
+	int srcProcessId;
 	// get the currently running process
-	run = List_last(runningQ);
+	runningProcess = List_last(runningQ);
 	// get the pid of the process in order to include it in the message
-	src = run->pid;
+	srcProcessId = runningProcess->pid;
 
-	// if the receiver of the message is already waiting in the receive Queue,
+	// if the receiver of the message is already waiting in the receive Queue, the sender don't get blocked
+	//this if block when receiver is already waiting, we get seg fault. so let's fix that issue. let's go
 	if (p = findpid_fromQ(pid, receiveQ))
 	{
 		// update the messge of the process
-		p->msg->src = src;
+		p->msg->src = srcProcessId;
 		p->msg->dest = pid;
 		p->msg->type = SEND;
 		// what does this strcpy do? ok just putting it
@@ -619,44 +625,37 @@ void send(int pid, char *msg)
 		// add to readyQ
 		p->state = READY;
 		List_prepend(readyQ[p->priority], p);
+		printf("SEND SUCCESS");
 	} // else if we can find the pcb in somewhere else(which is not blocked)
 	else if (findpid(pid))
 	{ // allocate memory for the message
 		pm = malloc(sizeof pm);
 		// set the message to the message
 		pm->body = (char *)malloc(sizeof(char) * 40);
-		pm->src = src;
+		pm->src = srcProcessId;
 		pm->dest = pid;
 		pm->type = SEND;
 		strcpy(pm->body, msg);
 		// put msg on messageQ
 		List_insert_after(messageQ, pm);
-		run = List_last(runningQ);
-		if (run->pid != 0)
+		runningProcess = List_last(runningQ);
+		if (runningProcess->pid != 0)
 		{
 			// blk sender
 			// by getting the process running,
-			p = List_trim(runningQ);
+			runningProcess = List_trim(runningQ);
 			// and block
-			p->state = BLOCKED;
+			runningProcess->state = BLOCKED;
 			// and put that into sendQ
-			List_insert_after(sendQ, p);
+			List_insert_after(sendQ, runningProcess);
 			// and let the last item in the ready queue running
 			runNextProcess();
 		}
+		printf("SEND SUCCESS");
 	} // if we cann't find the specified pcb, set it as fail
 	else
 	{
-		fail = 1;
-	}
-
-	if (!fail)
-	{
-		display("SEND SUCCESSFUL");
-	}
-	else
-	{
-		display("SEND FAIL");
+		printf("SEND FAILED");
 	}
 }
 
@@ -688,7 +687,7 @@ void performReceive()
 			p = List_trim(runningQ);
 			p->state = BLOCKED;
 			List_prepend(receiveQ, p);
-			// and let the next one run
+			// and let the next one runningProcess
 			runNextProcess();
 		}
 	}
@@ -697,15 +696,15 @@ void performReceive()
 // UNDERSTOOD how it's working.
 void reply_cmd(int pid, char *msg)
 {
-	PCB *run, *p;
+	PCB *runningProcess, *p;
 	// get the running process cuz he's wanting to reply, so we want his pid
-	run = List_last(runningQ);
+	runningProcess = List_last(runningQ);
 	// if the current process wants to reply to currently blocked sender,
 	if (p = findpid_fromQ(pid, sendQ))
 	{
 		// copy msg to sender's pcb
 		p->msg->dest = pid;
-		p->msg->src = run->pid;
+		p->msg->src = runningProcess->pid;
 		p->msg->type = REPLY;
 		strcpy(p->msg->body, msg);
 
@@ -939,11 +938,11 @@ void performKill(){
 }
 
 void performSend(){
-    printf("Enter the pid to send message to: ");
+    printf("Enter the pid to sendMessage message to: ");
     scanf("%d", &processId);
     printf("Enter message: ");
     scanf(" %[^\n]", messageBuf);
-    send(processId, messageBuf);
+    sendMessage(processId, messageBuf);
 }
 
 void performReply(){
@@ -1001,11 +1000,11 @@ void promptUser(){
             // break;
         }
         else if(userInputCmd =='E'){
-            performExit();
+            performExit();//DONE
             // break;
         }
         else if(userInputCmd =='Q'){
-            performQuantum();
+            performQuantum();//DONE
             // break;
         }
         else if(userInputCmd =='S'){
