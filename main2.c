@@ -664,11 +664,11 @@ void sendMessage(int pid, char *msg)
 void performReceive()
 {
 	PROC_MSG *pm;
-	PCB *p;
+	PCB *currentProcess;
 	int dest;
 	// get the currently running item
-	p = List_last(runningQ);
-	dest = p->pid;
+	currentProcess = List_last(runningQ);
+	dest = currentProcess->pid;
 	// chk messageQ
 	// show msg, src
 	// if there's already a message waiting to be received for this guy,
@@ -682,11 +682,11 @@ void performReceive()
 	{
 		// put process on receiveQ
 		// cpu sched
-		if (p->pid != 0)
+		if (currentProcess->pid != 0)
 		{ // take it out of running Q and then put that in receive queue
-			p = List_trim(runningQ);
-			p->state = BLOCKED;
-			List_prepend(receiveQ, p);
+			currentProcess = List_trim(runningQ);
+			currentProcess->state = BLOCKED;
+			List_prepend(receiveQ, currentProcess);
 			// and let the next one runningProcess
 			runNextProcess();
 		}
@@ -1008,7 +1008,7 @@ void promptUser(){
             // break;
         }
         else if(userInputCmd =='S'){
-            performSend();
+            performSend();//DONE
             // break;
         }
         else if(userInputCmd =='R'){
