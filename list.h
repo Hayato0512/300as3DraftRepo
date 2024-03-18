@@ -59,8 +59,7 @@ void* List_first(List* pList);
 // Returns NULL and sets current item to NULL if list is empty.
 void* List_last(List* pList); 
 
-// Advances pList's current item by one, and returns a pointer to the new current item.
-// If this operation advances the current item beyond the end of the pList, a NULL pointer 
+// Advances pList'scompareitemn advances the current item beyond the end of the pList, a NULL pointer 
 // is returned and the current item is set to be beyond end of pList.
 void* List_next(List* pList);
 

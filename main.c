@@ -732,7 +732,22 @@ void P(int sid)
 // UNDERSTOOD
 void V(int sid)
 {
+    SEM *s;
+    PCB *p;
+    int fail = 1;
+    int ready_q = 0;
 
+	s = findpid_fromQ(sid, semQ);
+	if(s){
+		s->value++;
+		if(s->value <=1){
+			if(p = List_trim(s->slist)){
+				List_prepend(readyQ[p->priority], p);
+				p->state = READY;
+				ready_q = 1;
+			}
+		}
+		fail = 0;
 	}
 
 	if (fail)
