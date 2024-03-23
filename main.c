@@ -1,49 +1,44 @@
-#include <stdio.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <ctype.h>
 #include <memory.h>
-#include "structures.h"
+#include "main.h"
+#include "list.h"
 
-// JUST NUMBERS TO USE, could be any number except MAX_SIZE
-#define MAX_SIZE 5000
-// states
-#define READY 100
-#define RUNNING 101
-#define BLOCKED 102
-// returnObj
-#define RET_QUEUE 200
-#define RET_PCB 201
-// msg type
-#define SEND 300
-#define RECEIVE 301
-#define REPLY 302
+char userInputCmd;
+char *resultReport;
+List *list;
 
-char *translate_type(int type);
+char messageBuf[40];
+int processId;
+int priority;
+int semId;
+PCB *initProcess;
 
-// place holder for every queue , to be initiated in main()
+// place holder for every queue, to be initiated in main()
 List *readyQ[3];
-List *sendQ, *recvQ, *msgQ, *semQ, *runQ;
+List *sendQ; 
+List *receiveQ; 
+List *messageQ; 
+List *semaphoreQ; 
+List *runningQ;
 
-// don't need
-int debug_msg = 1;
-// don't need
-int enable_printf = 1;
-// NEED THEM
-int numproc = 0;
-int proc_counter = 0;
+int numOfProcess = 0;
+int procAutoIncrement = 0;
 
-// function pointers
-
-// THIS NOT DOING ANYTHING
-// DONT NEED THIS GUY
-void freemem(void *x)
+void resetQueuesForSearch()
 {
-	printf("free mem: %c\n", *((char *)x));
+	List_first(runningQ);
+	List_first(readyQ[0]);
+	List_first(readyQ[1]);
+	List_first(readyQ[2]);
+	List_first(sendQ);
+	List_first(receiveQ);
+	List_first(semaphoreQ);
 }
 
-// UNDERSTOOD, ready to implement
-int compareitem(void *item, void *compareArg)
+int compareProcesses(void *item, void *compareArg)
 {
 	int *pid1, *pid2;
 	pid1 = ((int *)item);
@@ -59,160 +54,138 @@ int compareitem(void *item, void *compareArg)
 	}
 }
 
-// functions
-// probably don't need this 'enable_printf' as this is always 1
-// UNDERSTOOD, ready to implement.
-void display(char *str)
-{
-	if (enable_printf)
-	{
-		printf("%s\n", str);
-	}
-}
-
-// just set the current item to the first item in every queue in order to do search p efficierntly
-// UNDERSTOOD. ready to implement
-void resetQ_ptrs()
-{
-	List_first(readyQ[0]);
-	List_first(readyQ[1]);
-	List_first(readyQ[2]);
-	List_first(sendQ);
-	List_first(recvQ);
-	List_first(runQ);
-	List_first(semQ);
-}
-
 // reset the message
-// UNDERSTOOD. ready to implement.
-void reset_pm(PROC_MSG *pm)
+void resetMessage(PROC_MSG *pm)
 {
 	pm->src = -1;
 	pm->dest = -1;
 	strcpy(pm->body, "");
-	// memset(pm->body, (int) NULL, sizeof pm->body);
 }
 
-// function to display message
-// UNDERSTOOD. ready to implement.
-void display_pm(PROC_MSG *pm)
+char *getMessageTypeName(int type)
 {
-
-	display("-------");
-	display("Message Available:");
-	printf("Type: %s\n", translate_type(pm->type));
-	printf("From pid: %i - ", pm->src);
-	display(pm->body);
-	display("-------");
-}
-
-// UNDERSTOOD, ready to implement
-char *translate_state(int state)
-{
-	char *str;
-
-	if (state == READY)
-	{
-		str = "Ready";
-	}
-	else if (state == RUNNING)
-	{
-		str = "Running";
-	}
-	else if (state == BLOCKED)
-	{
-		str = "Blocked";
-	}
-	return str;
-}
-
-// UNDERSTOOD, ready to implement
-char *translate_type(int type)
-{
-	char *str;
+	char *returnString;
 
 	if (type == SEND)
 	{
-		str = "Send";
+		returnString = "Send";
 	}
 	else if (type == RECEIVE)
 	{
-		str = "Receive";
+		returnString = "Receive";
 	}
 	else if (type == REPLY)
 	{
-		str = "Reply";
+		returnString = "Reply";
 	}
-	return str;
+	return returnString;
 }
 
-// UNDERSTOOD. ready to implement
-void CPU_scheduler()
+// function to display message
+void printMessage(PROC_MSG *pm)
 {
-	PCB *p;
-	// 3 as we have 3 different ready queue.
-	int num = 3;
-	int i, status;
 
-	for (i = 0; i < num; i++)
-	{ // if ith ready queue is not empty,
-		if (List_count(readyQ[i]))
-		{
-			// get the last item
-			p = List_trim(readyQ[i]);
-			// add to runQ
-			if (p)
+	printf("\n-------\n");
+	printf("\nMessage Available:\n");
+	printf("Type: %s\n", getMessageTypeName(pm->type));
+	printf("From pid: %i - ", pm->src);
+	printf("\n");
+	printf(pm->body);
+	printf("\n");
+	printf("\n-------\n");
+}
+
+char *getStateName(int state)
+{
+	char *returnString;
+
+	if (state == READY)
+	{
+		returnString = "Ready";
+	}
+	else if (state == RUNNING)
+	{
+		returnString = "Running";
+	}
+	else if (state == BLOCKED)
+	{
+		returnString = "Blocked";
+	}
+	return returnString;
+}
+
+bool isListNotEmpty(List *list){
+	if(List_count(list)!=0){
+		return true;
+	}
+	else{
+		return false;
+	}
+}
+
+void runNextProcess()
+{
+	if(numOfProcess!=0){
+		PCB *p;
+		int num = 3;
+		int i;
+
+		for (i = 0; i < num; i++)
+		{ // if ith ready queue is not empty,
+			if (isListNotEmpty(readyQ[i]))
 			{
-				status = List_append(runQ, p);
+				// get the last item
+				p = List_trim(readyQ[i]);
+				// add to runningQ
+				if (p)
+				{
+					List_append(runningQ, p);
+					p->state = RUNNING;
+					printf("runNextProcess SUCCESS");
+				}
+				else{
+					printf("runNextProcess FAIL");
+				}
+				// exit loop
+				i = 69;
+			}
+		}
+		// set init proc state
+		// if there was no process waiting, just set the init process as running one.
+			if (p->pid == 0)
+			{
 				p->state = RUNNING;
 			}
+			printf("pid: %i now running. \n", p->pid);
 
-			// display status messages
-			if (status == 0)
-			{
-				display("CPU Schedule SUCCESS");
+			if (p->msg->src!=-1){
+
+			printf("\n_____________________\n", p->pid);
+			printf("pid: %i has message. \n", p->pid);
+			printf("\n_____________________\n", p->pid);
+			printf("Message: %s\n", p->msg->body);
+			printf("\n_____________________\n", p->pid);
 			}
-			else
-			{
-				display("CPU Schedule FAIL");
-			}
-			// exit loop
-			i = 99;
-		}
+
 	}
-	// set init proc state
-	// if there was no process waiting, just set the init process as running one.
-	if (p = List_last(runQ))
-	{
-		if (p->pid == 0)
-		{
-			p->state = RUNNING;
-		}
-		printf("pid: %i now running. \n", p->pid);
-
-		// we probably want to do this for every process that comes to running process(show the message if the currently running process has message)
-		if (strlen(p->msg->body) != 0)
-		{
-			display_pm(p->msg);
-		}
-
-		reset_pm(p->msg);
+	else{
+		printf("Only the initial process is running. cannot quantum.\n");
 	}
 }
 
 // find pid from a specified Q. easier than having to go through every single queue to find a specified PCB.
-// UNDERSTOOD, ready to implement.
-void *findpid_fromQ(int pid, List *list)
+PCB *findQueuedProcess(int pid, List *list)
 {
 	int (*comparator)(void *, void *);
 	Node *n;
 
-	comparator = &compareitem;
+	comparator = &compareProcesses;
 	List_first(list);
 	n = List_search(list, comparator, (void *)&pid);
+
 	if (n)
 	{
-		return n->pItem;
+		return &n->pItem;
 	}
 	else
 	{
@@ -220,423 +193,452 @@ void *findpid_fromQ(int pid, List *list)
 	}
 }
 
-// returnObj = 1 // return Queue
-// returnObj = 2 // return PCB
-// UNDERSTOOD.
-void *findpid(int pid, int returnObj)
+SEM *findSemaphore(int pid, List *list)
 {
+	int (*comparator)(void *, void *);
+	Node *n = NULL;
+
+	comparator = &compareProcesses;
+	List_first(list);
+	n = List_search(list, comparator, (void *)&pid);
+
+	if (n)
+	{
+		return &n->pItem;
+	}
+	else
+	{
+		return NULL;
+	}
+}
+
+void *findListFromProcess(int processId){
+
 	int (*comparator)(void *, void *);
 	List *list = NULL;
 	Node *n = NULL;
-	// get the comparator
-	comparator = &compareitem;
-	// why resetQ? just to search through. not too important
-	resetQ_ptrs();
-	// if the wanted pcb is there, assign the pcb to n
-	if (n = List_search(readyQ[0], comparator, (void *)&pid))
+
+	if (n = List_search(readyQ[0], comparator, (void *)&processId))
 	{
 		list = readyQ[0];
 	}
-	else if (n = List_search(readyQ[1], comparator, (void *)&pid))
+	else if (n = List_search(readyQ[1], comparator, (void *)&processId))
 	{
 		list = readyQ[1];
 	}
-	else if (n = List_search(readyQ[2], comparator, (void *)&pid))
+	else if (n = List_search(readyQ[2], comparator, (void *)&processId))
 	{
 		list = readyQ[2];
 	}
-	else if (n = List_search(sendQ, comparator, (void *)&pid))
+	else if (n = List_search(sendQ, comparator, (void *)&processId))
 	{
 		list = sendQ;
 	}
-	else if (n = List_search(recvQ, comparator, (void *)&pid))
+	else if (n = List_search(receiveQ, comparator, (void *)&processId))
 	{
-		list = recvQ;
+		list = receiveQ;
 	}
-	else if (n = List_search(runQ, comparator, (void *)&pid))
+	else if (n = List_search(runningQ, comparator, (void *)&processId))
 	{
-		list = runQ;
+		list = runningQ;
 	}
-	// if we need to search through semQ,
-	else if (List_count(semQ))
+	// if we need to search through semaphoreQ,
+	else if (List_count(semaphoreQ))
 	{
 		SEM *s;
 		int i, count;
 		// get the number of semaphores
-		count = List_count(semQ);
-		// don't we wanna do this to List_first?
-		List_prev(semQ);
+		count = List_count(semaphoreQ);
+		List_prev(semaphoreQ);
 		for (i = 0; i < count; i++)
 		{
-			// start from first node of semQ and s->list
-			s = List_next(semQ);
+			// start from first node of semaphoreQ and s->list
+			s = List_next(semaphoreQ);
+			// get the first item waiting on the semaphore
+			List_first(s->slist);
+			// if that pcb is what we are looking for,
+			if (n = List_search(s->slist, comparator, (void *)&processId))
+			{ // set that semaphore list as returning list
+				list = s->slist;
+				i = 69;
+			}
+		}
+	}
+	return list;
+
+}
+
+void *findProcess(int pid)
+{
+	int (*comparator)(void *, void *);
+	List *list = NULL;
+	Node *n;
+	// get the comparatoList_searchr
+	comparator = &compareProcesses;
+	resetQueuesForSearch();
+	// if the wanted pcb is there, assign the pcb to n
+	if (n = List_search(readyQ[0], comparator, (void *)&pid))
+	{
+		printf("found the specified pid in readyQ 0");
+	return &n->pItem;
+	}
+	else if (n = List_search(readyQ[1], comparator, (void *)&pid))
+	{
+	if(n == NULL){
+	return NULL;		
+	}	
+	if(n->pItem ==NULL){
+	return NULL;		
+	}	
+	return &n->pItem;
+	}
+	else if (n = List_search(readyQ[2], comparator, (void *)&pid))
+	{
+	return &n->pItem;
+	}
+	else if (n = List_search(sendQ, comparator, (void *)&pid))
+	{
+	return &n->pItem;
+	}
+	else if (n = List_search(receiveQ, comparator, (void *)&pid))
+	{
+	return &n->pItem;
+	}
+	else if (n = List_search(runningQ, comparator, (void *)&pid))
+	{
+	return &n->pItem;
+	}
+	// if we need to search through semaphoreQ,
+	else if (List_count(semaphoreQ))
+	{
+		SEM *s;
+		int i, count;
+		// get the number of semaphores
+		count = List_count(semaphoreQ);
+		// don't we wanna do this to List_first?
+		List_prev(semaphoreQ);
+		for (i = 0; i < count; i++)
+		{
+			// start from first node of semaphoreQ and s->list
+			s = List_next(semaphoreQ);
 			// get the first item waiting on the semaphore
 			List_first(s->slist);
 			// if that pcb is what we are looking for,
 			if (n = List_search(s->slist, comparator, (void *)&pid))
 			{ // set that semaphore list as returning list
-				list = s->slist;
 				i = count;
+	return &n->pItem;
 			}
 		}
 	}
-	// I need to know why we need to return either list or the pcb.
-	if (returnObj == RET_QUEUE)
-	{
-		return list;
-	}
-	if (returnObj == RET_PCB)
-	{
-		return n->pItem;
-	}
-
 	return NULL;
 }
 
+char *getItemCategory(List *list){
+	if (list == messageQ)
+	{
+		return "destination";
+	}
+	else if (list == semaphoreQ)
+	{
+		return "sid";
+	}
+	else
+	{
+		return "pid";
+	}
+}
+
 // To print all the information about the specified queue.
-// UNDERSTOOD.
-void display_queue(List *list)
+void printQueue(List *list)
 {
-	void *ptr;
+	void *pointer;
 	char *str;
 	int id;
 
 	List_first(list);
 	List_prev(list);
-	if (list == msgQ)
-	{
-		str = "dest";
-	}
-	else if (list == semQ)
-	{
-		str = "sid";
-	}
-	else
-	{
-		str = "pid";
-	}
+	str = getItemCategory(list);
 
 	printf("%s: ", str);
-	while (ptr = List_next(list))
+	while (pointer = List_next(list))
 	{
-		if (list == semQ)
+		if (list == semaphoreQ)
 		{
 			SEM *s;
-			s = (SEM *)ptr;
+			s = (SEM *)pointer;
 			id = s->sid;
 		}
 		else
 		{
 			PCB *p;
-			p = (PCB *)ptr;
+			p = (PCB *)pointer;
 			id = p->pid;
 		}
 		printf("%i,", id);
 	}
-	display("");
+	printf("\n\n");
 }
 
-// commands
-
-// maybe we don't need this pm in the parameter
-// cuz when we falk, I don't want to keep the message??
-// UNDERSTOOD and ready to implement
-char *create(int priority, PROC_MSG *pm)
-{
-	char *report;
-	char *buf;
-	int size;
-	// PROC_MSG *pm;
-
+bool isValidPriorityNumber(int priority){
 	if (priority < 0 || priority > 2)
+	{
+        return false;
+	}
+    else{
+        true;
+    }
+}
+
+char *create(int priority)
+{
+	char *resultReport;
+	int listSize;
+
+	//If the user input invalid number, set it to 2
+	if (!isValidPriorityNumber(priority))
 	{
 		priority = 2;
 	}
 
-	size = List_count(readyQ[priority]);
+	listSize = List_count(readyQ[priority]);
 
-	// what is the difference between numproc and proc_counter??
-	// numproc is just the number of pcb at the moment
-	// proc_counter is used to assign auto-incremented id to a new pcb.
-	// we wanna use both as killing a process will numProc -- but we want to keep increment for the new pcb id
-	numproc++;
-	proc_counter++;
-	// allocate memory for the new PCB,
+	numOfProcess++;
+	//for process id auto increment 
+	procAutoIncrement++;
+	// allocate memory for the new PCB
 	PCB *p = malloc(sizeof(PCB));
-	p->pid = proc_counter;
+	p->pid = procAutoIncrement;
 	p->priority = priority;
 	p->state = READY;
 	// allocate memory for the messge section in the PCB
 	p->msg = (PROC_MSG *)malloc(sizeof(PROC_MSG));
+	p->msg->src = -1;
 	p->msg->body = (char *)malloc(sizeof(char) * 40);
 
-	// I don't think we need this cuz we don't wanna inherit the message when folking
-	if (pm != NULL)
-	{
-		p->msg->dest = pm->dest;
-		p->msg->src = pm->src;
-		p->msg->type = pm->type;
-		strcpy(p->msg->body, pm->body);
-	}
-	else
-	{
-		reset_pm(p->msg);
-	}
-	// add the newly created process to ready Q, when create a pcb, it will automatically go to readyQ
 	List_prepend(readyQ[priority], p);
 	// check if the list got a new item, and if so, success, if not fail.
-	if (List_count(readyQ[priority]) == size + 1)
+	if (List_count(readyQ[priority]) == (listSize + 1))
 	{
-		buf = "SUCCESS: pid";
-
-		// sprintf (report, "%s%i", buf, p->pid);
-
 		printf("SUCCESS: pid%i\n", p->pid);
 	}
 	else
 	{
-		report = "FAIL";
-		printf("FAIL\n");
+		resultReport = "PROCESS CREATION FAILED";
 	}
 	// at the end, return the result.
-	return report;
+	return resultReport;
 }
 
-// UNDERSTOOD.
-char *fork_cmd()
+char *forkProcess()
 { // create report, and pointer to the pcb
-	char *report;
-	PCB *p;
+	char *resultReport;
+	PCB *currentProcess;
 	// get the pointer to the curent item in the running Q
-	p = List_last(runQ);
 	// if the current running process is not null,
-	if (p)
+	if (currentProcess = List_last(runningQ))
 	{ // create a new pcb and put that in the ready Q
-		report = create(p->priority, p->msg);
+		// report = create(p->priority, p->msg);
+		if(currentProcess->pid != 0){
+		resultReport = create(currentProcess->priority);
+		}
+		else{
+		printf("FORK FAILED");
+		resultReport = "FORK FAILED";
+		}
+	}
+	else{
+		printf("FORK FAILED");
+		resultReport = "FORK FAILED";
 	}
 	// finally return the result report
-	return report;
+	return resultReport;
 }
-// UNDERSTOOD, ready to implement
-char *kill(int pid, List *list)
-{
-	char *report;
-	PCB *p;
-	int fail = 1;
 
+char *killProcess(int pid, List *list)
+{
+	char *resultReport;
+	PCB *p;
 	if (list)
-	{ // this will remove the current item in the specififed list.
+	{ 
 		p = List_remove(list);
-		fail = 0;
-	}
-
-	if (p && !fail)
-	{
-		// if success, free the memory of the removed pcb.
-		display("SUCCESS");
+		resultReport = "SUCCESS";
 		printf("pid:%i removed\n", p->pid);
+        if(p->pid !=0){
 		free(p->msg->body);
 		free(p->msg);
 		free(p);
-		p->msg->body = 0;
-		p->msg = 0;
-		p = 0;
-		numproc--;
+		numOfProcess--;
+        }
 	}
-	else
-	{
-		display("FAIL");
+	else{
+		resultReport = "FAIL";
 	}
 
-	return report;
+	return resultReport;
 }
 
-// with "e", kill the current running process.
-// UNDERSTOOD. ready to implement
-char *exit_curr()
+char *performExit()
 {
-	char *report;
-	PCB *p;
-	// get the currentrunning process
-	p = List_last(runQ);
-	// this condition check might be wrong. why numProc == 0?
-	//  if numproc ==0, which means we only have init process(kernal)
-	// so this 'e' will work to terminate the whole program if no process. try it
-	// so i guess when init process is created, we don't do numproc++??
-	if (numproc == 0 || p->pid != 0)
+	char *resultReport;
+	PCB *currentProcess;
+	currentProcess = List_last(runningQ);
+
+	if (currentProcess)
 	{
-		// remove the currently running pcb
-		p = List_trim(runQ);
-		printf("pid:%i removed\n", p->pid);
+		currentProcess = List_trim(runningQ);
+		printf("pid:%i removed\n", currentProcess->pid);
 		// free memory
-		free(p->msg->body);
-		free(p->msg);
-		free(p);
-		p->msg->body = 0;
-		p->msg = 0;
-		p = 0;
-		numproc--;
+        if(currentProcess->pid !=0){
+		free(currentProcess->msg->body);
+		free(currentProcess->msg);
+		free(currentProcess);
+		numOfProcess--;
 		// get another process from readyQ running.
-		CPU_scheduler();
+		if(numOfProcess!=0){
+		runNextProcess();
+		}
+        }
+        else{
+		printf("init core process killed. Terminating the program.\n");
+        }
 	}
 	else
 	{
-		display("Cannot exit init process.  Other processes waiting.");
+		printf("Exit the current process FAILED\n");
 	}
-	return report;
+	return resultReport;
 }
-// UNDERSTOOD
-void quantum()
-{
-	PCB *p;
 
-	// take item out of runQ
-	p = List_last(runQ);
-	// if the removed process is just a normal pcb (not init process)
-	if (p->pid != 0)
+void decreasePriority(PCB *p){
+	if (p->priority < 2)
 	{
-		p = List_trim(runQ);
-		// descrease priority
-		if (p->priority < 2)
-		{
-			p->priority++;
-		}
-		// push the p into the ready queue to the front of the ready Q.
-		p->state = READY;
-		// place on readyQ
-		if (p)
-		{
-			List_prepend(readyQ[p->priority], p);
-
-			printf("pid: %i placed on ready queue.\n", p->pid);
-			// printf("priority: %i\n", p->priority);
-		}
+		p->priority++;
 	}
-	// why do we need this? what happen if we 'q' when no process
-	// we don't need this block.
-	//  else
-	//  {
-	//  	// reset init proc state
-	//  	p->state = READY;
-	//  }
-
-	// run cpu scheduler
-	CPU_scheduler();
 }
 
-// UNDERSTOOD, ready to implement
-void send(int pid, char *msg)
+void performQuantum()
 {
-	PCB *run, *p;
-	PROC_MSG *pm;
-	int src;
-	int fail = 0;
-	// get the currently running process
-	run = List_last(runQ);
-	// get the pid of the process in order to include it in the message
-	src = run->pid;
+	PCB *currentProcess;
 
-	// if the receiver of the message is already waiting in the receive Queue,
-	if (p = findpid_fromQ(pid, recvQ))
+	// take item out of runningQ
+	currentProcess = List_last(runningQ);
+	// if the removed process is just a normal pcb (not init process)
+	if (currentProcess->pid != 0)
+	{
+		currentProcess = List_trim(runningQ);
+
+		decreasePriority(currentProcess);
+
+		// push the p into the ready queue to the front of the ready Q.
+		currentProcess->state = READY;
+		// place on readyQ
+		List_prepend(readyQ[currentProcess->priority], currentProcess);
+
+		printf("pid: %i placed on ready queue.\n", currentProcess->pid);
+	}
+
+	runNextProcess();
+}
+
+void sendMessage(int pid, char *msg)
+{
+	PCB *runningProcess, *p;
+	PROC_MSG *pm;
+	int srcProcessId;
+	// get the currently running process
+	runningProcess = List_last(runningQ);
+	// get the pid of the process in order to include it in the message
+	srcProcessId = runningProcess->pid;
+
+	// if the receiver of the message is already waiting in the receive Queue, the sender don't get blocked
+	//this if block when receiver is already waiting, we get seg fault. so let's fix that issue. let's go
+	if (p = findQueuedProcess(pid, receiveQ))
 	{
 		// update the messge of the process
-		p->msg->src = src;
+		p->msg->src = srcProcessId;
 		p->msg->dest = pid;
 		p->msg->type = SEND;
-		// what does this strcpy do? ok just putting it
 		strcpy(p->msg->body, msg);
-		// take out of recvQ
-		p = List_remove(recvQ);
+		// take out of receiveQ
+		p = List_remove(receiveQ);
 		// add to readyQ
 		p->state = READY;
 		List_prepend(readyQ[p->priority], p);
 	} // else if we can find the pcb in somewhere else(which is not blocked)
-	else if (findpid(pid, RET_QUEUE))
+	else if (findProcess(pid))
 	{ // allocate memory for the message
 		pm = malloc(sizeof pm);
 		// set the message to the message
 		pm->body = (char *)malloc(sizeof(char) * 40);
-		pm->src = src;
+		pm->src = srcProcessId;
 		pm->dest = pid;
 		pm->type = SEND;
 		strcpy(pm->body, msg);
-		// put msg on msgQ
-		List_insert_after(msgQ, pm);
-		run = List_last(runQ);
-		if (run->pid != 0)
+		// put msg on messageQ
+		List_insert_after(messageQ, pm);
+		runningProcess = List_last(runningQ);
+		if (runningProcess->pid != 0)
 		{
 			// blk sender
 			// by getting the process running,
-			p = List_trim(runQ);
+			runningProcess = List_trim(runningQ);
 			// and block
-			p->state = BLOCKED;
+			runningProcess->state = BLOCKED;
 			// and put that into sendQ
-			List_insert_after(sendQ, p);
+			List_insert_after(sendQ, runningProcess);
 			// and let the last item in the ready queue running
-			CPU_scheduler();
+			runNextProcess();
 		}
+		printf("SEND SUCCESS");
 	} // if we cann't find the specified pcb, set it as fail
 	else
 	{
-		fail = 1;
-	}
-
-	if (!fail)
-	{
-		display("SEND SUCCESSFUL");
-	}
-	else
-	{
-		display("SEND FAIL");
+		printf("SEND FAILED");
 	}
 }
 
 // RECEIVE
-// UNDERSTOOD
-void rx()
+void performReceive()
 {
 	PROC_MSG *pm;
-	PCB *p;
-	int dest;
+	PCB *currentProcess;
+	int destPid;
 	// get the currently running item
-	p = List_last(runQ);
-	dest = p->pid;
-	// chk msgQ
-	// show msg, src
+	currentProcess = List_last(runningQ);
+	destPid = currentProcess->pid;
 	// if there's already a message waiting to be received for this guy,
-	if (pm = findpid_fromQ(dest, msgQ))
+	if (pm = findQueuedProcess(destPid, messageQ))
 	{ // display the message, and remove the messge from queue
-		display_pm(pm);
-		List_remove(msgQ);
+		printMessage(pm);
+		List_remove(messageQ);
 	}
 	// if no message available for this guy, then block
 	else
 	{
-		// put process on recvQ
-		// cpu sched
-		if (p->pid != 0)
+		// put process on receiveQ
+		if (currentProcess->pid != 0)
 		{ // take it out of running Q and then put that in receive queue
-			p = List_trim(runQ);
-			p->state = BLOCKED;
-			List_prepend(recvQ, p);
-			// and let the next one run
-			CPU_scheduler();
+			currentProcess = List_trim(runningQ);
+			currentProcess->state = BLOCKED;
+			List_prepend(receiveQ, currentProcess);
+			// and let the next one runningProcess
+			runNextProcess();
 		}
 	}
 }
 // REPLY
-// UNDERSTOOD how it's working.
-void reply_cmd(int pid, char *msg)
+void replyMessage(int pid, char *msg)
 {
-	PCB *run, *p;
+	PCB *runningProcess, *p;
 	// get the running process cuz he's wanting to reply, so we want his pid
-	run = List_last(runQ);
+	runningProcess = List_last(runningQ);
 	// if the current process wants to reply to currently blocked sender,
-	if (p = findpid_fromQ(pid, sendQ))
+	if (p = findQueuedProcess(pid, sendQ))
 	{
 		// copy msg to sender's pcb
 		p->msg->dest = pid;
-		p->msg->src = run->pid;
+		p->msg->src = runningProcess->pid;
 		p->msg->type = REPLY;
 		strcpy(p->msg->body, msg);
 
@@ -646,90 +648,90 @@ void reply_cmd(int pid, char *msg)
 		// and insert the unblocked sender to the appropriete ready queue.
 		List_prepend(readyQ[p->priority], p);
 
-		display("REPLY SUCCESS");
+		printf("\nREPLY SUCCESS\n");
 	}
 	// I think i need to modify here, cuz
 	// a process can reply to a process that are not waiting at all.
 	// FIX HERE.
 	else
 	{
+		p = findProcess(pid);
+		if(p!=NULL){
+		p->msg->dest = pid;
+		p->msg->src = runningProcess->pid;
+		p->msg->type = REPLY;
+		strcpy(p->msg->body, msg);
+		}
+		else{
 		// fail
-		display("REPLY FAIL");
+		printf("\nREPLY FAIL\n");
+		}
 	}
 }
 
-//'n' to create a new semaphore.
-// UNDERSTOOD, ready to implement
-void new_sem(int sid)
+bool isValidSemNumber(int sid){
+	if (sid >= 0 && sid <= 4){
+		return true;
+	}
+	else{
+		return false;
+	}
+}
+
+void createSemaphore(int sid)
 {
 	// init sem
 	SEM *s;
-	int fail = 1;
 	// if sid 0-5 AND does not already exist;
-	if (sid >= 0 && sid <= 4)
+	if (isValidSemNumber(sid))
 	{
-		if (!findpid_fromQ(sid, semQ))
+		if (!findSemaphore(sid, semaphoreQ))
 		{
 			s = malloc(sizeof(SEM));
 			s->sid = sid;
-			s->value = 0;
+			s->value = 1;
 			s->slist = List_create();
-			List_insert_after(semQ, s);
+			List_insert_after(semaphoreQ, s);
+			printf("SEM initialization SUCCESS");
 
-			fail = 0;
+		}
+		else{
+			printf("SEM initialization FAIL");
 		}
 	}
-
-	if (!fail)
-	{
-		display("SUCCESS");
-		printf("SEM %i initialized\n", sid);
-	}
-	else
-	{
-		display("FAIL");
+	else{
+			printf("SEM initialization FAIL");
 	}
 }
 
-// UNDERSTOOD
 void P(int sid)
 {
 	SEM *s;
+	s = malloc(sizeof(SEM));
 	PCB *p;
-	int fail = 1;
 	int block = 0;
 
-	p = List_last(runQ);
-	s = findpid_fromQ(sid, semQ);
-	if (s && p->pid != 0)
+	p = List_last(runningQ);
+	s = findSemaphore(sid, semaphoreQ);
+	
+	if (s !=NULL && p->pid != 0)
 	{
-		s->value--;
-		if (s->value < 0)
+		s->value--;            
+		if (s->value <= 0)
 		{
-			p = List_trim(runQ);
+			p = List_trim(runningQ);
 			p->state = BLOCKED;
 			List_prepend(s->slist, p);
-			fail = 0;
 			block = 1;
+			printf("P SUCCESS");
+			runNextProcess();	
 		}
 	}
-
-	if (fail)
-	{
-		display("FAIL");
-	}
-	else
-	{
-		display("SUCCESS");
-		if (block)
-		{
-			printf("pid: %i BLOCKED\n", p->pid);
-		}
-		CPU_scheduler();
+	else{
+		printf("P FAIILED");
 	}
 }
 
-// UNDERSTOOD
 void V(int sid)
 {
     SEM *s;
@@ -737,7 +739,7 @@ void V(int sid)
     int fail = 1;
     int ready_q = 0;
 
-	s = findpid_fromQ(sid, semQ);
+	s = findQueuedProcess(sid, semaphoreQ);
 	if(s){
 		s->value++;
 		if(s->value <=1){
@@ -749,14 +751,13 @@ void V(int sid)
 		}
 		fail = 0;
 	}
-
 	if (fail)
 	{
-		display("FAIL");
+		printf("\nFAIL\n");
 	}
 	else
 	{
-		display("SUCCESS");
+		printf("\nSUCCESS\n");
 		if (ready_q)
 		{
 			printf("pid: %i into READY QUEUE\n", p->pid);
@@ -764,220 +765,226 @@ void V(int sid)
 	}
 }
 
-// UNDERSTOOD
 void procinfo(int pid)
 {
-	PCB *p;
+	PCB *process;
 	char *state;
 
-	p = (PCB *)findpid(pid, RET_PCB);
-	if (p)
+	process = findProcess(pid);//i think it's becaues of the way findpid return stuff. cuz p is there. 
+	// P IS NOT NULL;m but accessing anythingi regarding p is null. 
+	if (process != NULL)
 	{
-
-		state = translate_state(p->state);
-		display("=========");
-		printf("Proc Info for pid: %i\n", p->pid);
-		printf("Priority: %i\n", p->priority);
+		state = getStateName(process->state);
+		printf("\nPROCESS INFORMATION\n");
+		printf("\n______________________\n");
+		printf("Process Id: %i\n", process->pid);
+		printf("______________________\n");
+		printf("Priority: %i\n", process->priority);
+		printf("______________________\n");
 		printf("State: %s\n", state);
-		printf("Msg: %s\n", p->msg->body);
-		display("=========");
+		printf("______________________\n");
+		printf("Message: %s\n", process->msg->body);
+		printf("\n_________________\n");
 	}
 	else
 	{
-		printf("Cannot get Proc Info");
+		printf("PROCESS INFO ACQUISITION FAILED");
 	}
 }
 
-// UNDERSTOOD
 void totalinfo()
 {
 	PCB *p;
-	char *state;
 	int i, count;
 
-	// runQ
-	p = List_last(runQ);
-	state = translate_state(p->state);
-	display("=========");
-	display("RUN QUEUE");
+	// runningQ
+	p = List_last(runningQ);
+	printf("\n_______________\n");
+	printf("\nRUNNING QUEUE\n");
 	printf("pid: %i\n", p->pid);
 
 	// readyQ
-	display("READY QUEUES");
+	printf("\nREADY QUEUES\n");
 	for (i = 0; i < 3; i++)
 	{
 		printf("Priority [%i]:\n", i);
-		display_queue(readyQ[i]);
+		printQueue(readyQ[i]);
 	}
 
-	// sendQ
-	display("SEND QUEUE");
-	display_queue(sendQ);
-	display("RECEIVE QUEUE");
-	display_queue(recvQ);
-	display("MSG QUEUE");
-	display_queue(msgQ);
+	// MESSAGE Q
+	printf("\nSEND QUEUE\n");
+	printQueue(sendQ);
+	printf("\nRECEIVE QUEUE\n");
+	printQueue(receiveQ);
+	printf("\nMSG QUEUE\n");
+	printQueue(messageQ);
 
-	display("SEM QUEUES");
-	if (count = List_count(semQ))
+	printf("\nSEM QUEUES\n");
+	if(isListNotEmpty(semaphoreQ))
 	{
+		count = List_count(semaphoreQ);
 		SEM *s;
-
-		List_first(semQ);
-		List_prev(semQ);
+		List_first(semaphoreQ);
+		List_prev(semaphoreQ);
 		for (i = 0; i < count; i++)
 		{
-			s = List_next(semQ);
+			s = List_next(semaphoreQ);
 			printf("sid%i: ", s->sid);
-			display_queue(s->slist);
+			printQueue(s->slist);
 		}
 	}
 
-	// display("P() QUEUE");
-	// display("V() QUEUE");
-	display("=========");
+	printf("\n_______________\n");
 }
 
-// UNDERSTOOD
+void setInitProcess(){
+    initProcess = malloc(sizeof(PCB));
+    initProcess->pid = 0;
+    initProcess->priority = 0;
+    initProcess->state = RUNNING;
+    List_insert_after(runningQ, initProcess);
+}
+
+void initQueues(){
+    runningQ = List_create();
+    readyQ[0] = List_create();
+    readyQ[1] = List_create();
+    readyQ[2] = List_create();
+    sendQ = List_create();
+    receiveQ = List_create();
+    messageQ = List_create();
+    semaphoreQ = List_create();
+}
+
+void performCreate(){
+    printf("Specify Process Priority (0, 1, 2): ");
+    scanf("%d", &priority);
+    resultReport = create(priority);
+}
+
+void performKill(){
+    printf("Enter the pid to killProcess: ");
+    scanf("%d", &processId);
+    if(processId== 0 && numOfProcess !=0){
+        printf("\n You can't killProcess the init core process.\n");
+    }else{
+		//instead of passing RET_QUEUE, just get the PCB returned, and 
+		//write a function to get which queue the PCB is in. 
+		PCB *p;
+        p = (PCB *) findProcess(processId);
+		list = findListFromProcess(processId);
+		//pass processId, and get the name of the list.
+        resultReport = killProcess(processId, list);
+        if(list == runningQ){
+            runNextProcess();
+        }
+    }
+}
+
+void performSend(){
+    printf("Enter the pid to sendMessage message to: ");
+    scanf("%d", &processId);
+    printf("Enter message: ");
+    scanf(" %[^\n]", messageBuf);
+    sendMessage(processId, messageBuf);
+}
+
+void performReply(){
+    printf("Enter the pid to reply to: ");
+    scanf("%d", &processId);
+    printf("Enter reply message: ");
+    scanf(" %[^\n]", messageBuf);
+    replyMessage(processId, messageBuf);
+}
+
+void performNewSemaphore(){
+    printf("Enter SEM id to create: ");
+    scanf("%d", &semId);
+    createSemaphore(semId);
+}
+
+void performP(){
+    printf("Enter SEM id to apply P: ");
+    scanf("%d", &semId);
+    P(semId);
+}
+
+void performV(){
+    printf("Enter SEM id to apply V: ");
+    scanf("%d", &semId);
+    V(semId);
+}
+
+void performProcInfo(){
+    printf("Enter process id to see details: ");
+    scanf("%d", &processId);
+    procinfo(processId);
+}
+
+void promptUser(){
+
+    while(List_count(runningQ)>0){
+
+        printf("\nEnter command :");
+        scanf("%c", &userInputCmd);
+        userInputCmd = toupper(userInputCmd);
+
+        if(userInputCmd =='C'){
+            performCreate(); //DONE
+        }
+        else if(userInputCmd =='F'){
+            resultReport = forkProcess();//DONE
+        }
+        else if(userInputCmd =='K'){
+            performKill();//DONEDONEDONE
+        }
+        else if(userInputCmd =='E'){
+            performExit();//DONE
+        }
+        else if(userInputCmd =='Q'){
+            performQuantum();//DONE
+        }
+        else if(userInputCmd =='S'){
+            performSend();//DONE
+        }
+        else if(userInputCmd =='R'){
+            performReceive();//DONE
+        }
+        else if(userInputCmd =='Y'){
+            performReply();//DONE
+        }
+        else if(userInputCmd =='N'){
+            performNewSemaphore();
+        }
+        else if(userInputCmd =='P'){
+            performP();
+        }
+        else if(userInputCmd =='V'){
+            performV();
+        }
+        else if(userInputCmd =='I'){
+            performProcInfo();
+        }
+        else if(userInputCmd =='T'){
+            totalinfo();
+        }
+        else{
+        }
+
+    }
+
+}
+
 int main(int argc, const char *argv[])
 {
-	char *str;
-	char buf[40];
-	int pid, priority, sid, status;
 
-	// void (*itemFree)(void*);
-	// int (*comparator)(void*, void*);
+    initQueues();
+    setInitProcess();
 
-	char cmd;
-	// char param;
-	char *report;
-	PCB *init;
-	List *list;
 
-	// create lists
+    promptUser();
 
-	runQ = List_create();
-	sendQ = List_create();
-	recvQ = List_create();
-	readyQ[0] = List_create();
-	readyQ[1] = List_create();
-	readyQ[2] = List_create();
-	msgQ = List_create();
-	semQ = List_create();
-
-	// init init process
-	init = malloc(sizeof(PCB));
-	init->pid = 0;
-	init->priority = 0;
-	init->state = RUNNING;
-
-	init->msg = (PROC_MSG *)malloc(sizeof(PROC_MSG));
-	init->msg->body = (char *)malloc(sizeof(char) * 40);
-
-	reset_pm(init->msg);
-
-	// strlen(init->msg->body);
-
-	List_insert_after(runQ, init);
-
-	// str = hi();
-	while (List_count(runQ))
-	{
-
-		printf("Enter Command: ");
-		scanf("%c", &cmd);
-		cmd = toupper(cmd);
-
-		switch (cmd)
-		{
-		// create
-		case 'C':
-			printf("Enter Priority (0, 1, 2): ");
-			scanf("%d", &priority);
-			report = create(priority, NULL);
-			break;
-		// fork
-		case 'F':
-			report = fork_cmd();
-			break;
-		case 'K':
-			status = 0;
-			printf("Enter pid: ");
-			scanf("%d", &pid);
-			if (pid == 0 && numproc != 0)
-			{
-				display("Cannot kill init process.");
-				break;
-			}
-			// this kill will kill the current process. why do we need to know the list?
-			// ok, we wanna know it because if the user kill the process in the running Q, we
-			// want to start the next process.
-			// but if the pcb is in the other queue, we don't do CPU scheduling.
-			// so that is why.
-			list = findpid(pid, RET_QUEUE);
-			report = kill(pid, list);
-			if (list && list == runQ)
-			{
-				CPU_scheduler();
-			}
-
-			break;
-		case 'E':
-			exit_curr();
-			break;
-		case 'Q':
-			quantum();
-			break;
-		case 'S':
-			printf("Enter pid: ");
-			scanf("%i", &pid);
-			printf("Enter message: ");
-			// scanf(" %s", buf);
-			scanf(" %[^\n]", buf);
-			send(pid, buf);
-			break;
-		case 'R':
-			rx();
-			break;
-		case 'Y':
-			printf("Enter pid: ");
-			scanf("%i", &pid);
-			printf("Enter reply: ");
-			scanf(" %[^\n]", buf);
-			reply_cmd(pid, buf);
-			break;
-		case 'N':
-			printf("Enter SEM id: ");
-			scanf("%i", &sid);
-			new_sem(sid);
-			break;
-		case 'P':
-			printf("Enter SEM id: ");
-			scanf("%i", &sid);
-			P(sid);
-			break;
-		case 'V':
-			printf("Enter SEM id: ");
-			scanf("%i", &sid);
-			V(sid);
-			break;
-		case 'I':
-			printf("Enter pid: ");
-			scanf("%i", &pid);
-			procinfo(pid);
-			break;
-		case 'T':
-			totalinfo();
-			break;
-
-		default:
-			break;
-		}
-		scanf("%c", &cmd);
-		memset(&cmd, (int)NULL, sizeof cmd);
-
-		// printf("%s\n", report);
-	}
 
 	return 0;
+
 }

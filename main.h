@@ -1,6 +1,5 @@
 #include "list.h"
 
-// JUST NUMBERS TO USE, could be any number except MAX_SIZE
 #define MAX_SIZE 200
 // states
 #define READY 1
