@@ -1,9 +1,9 @@
-#include <stdio.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <ctype.h>
 #include <memory.h>
-#include "structures.h"
+#include "main.h"
 #include "list.h"
 
 
@@ -178,6 +178,14 @@ void runNextProcess()
 			}
 			printf("pid: %i now running. \n", p->pid);
 
+			if (p->msg->src!=-1){
+
+			printf("\n_____________________\n", p->pid);
+			printf("pid: %i has message. \n", p->pid);
+			printf("\n_____________________\n", p->pid);
+			printf("Message: %s\n", p->msg->body);
+			printf("\n_____________________\n", p->pid);
+			}
 			// we probably want to do this for every process that comes to running process(show the message if the currently running process has message)
 			// if (strlen(p->msg->body) != 0)
 			// {
@@ -499,6 +507,7 @@ char *create(int priority)
 	p->state = READY;
 	// allocate memory for the messge section in the PCB
 	p->msg = (PROC_MSG *)malloc(sizeof(PROC_MSG));
+	p->msg->src = -1;
 	p->msg->body = (char *)malloc(sizeof(char) * 40);
 
 //heyheyhey
@@ -528,7 +537,13 @@ char *forkProcess()
 	if (currentProcess = List_last(runningQ))
 	{ // create a new pcb and put that in the ready Q
 		// report = create(p->priority, p->msg);
+		if(currentProcess->pid != 0){
 		resultReport = create(currentProcess->priority);
+		}
+		else{
+		printf("FORK FAILED");
+		resultReport = "FORK FAILED";
+		}
 	}
 	else{
 		printf("FORK FAILED");
@@ -537,15 +552,15 @@ char *forkProcess()
 	// finally return the result report
 	return resultReport;
 }
-// UNDERSTOOD, ready to implement
+
 char *killProcess(int pid, List *list)
 {
 	char *resultReport;
 	PCB *p;
 	printf("\nhey 1");
 	if (list)
-	{ // this will remove the current item in the specififed list.and current item is what we want to killProcess
-	//cuz after performingi list_search, the current pointer is pointing to the searched item. 
+	{ 
+	
 	printf("\nhey 2");
 		p = List_remove(list);
 		resultReport = "SUCCESS";
@@ -554,9 +569,6 @@ char *killProcess(int pid, List *list)
 		free(p->msg->body);
 		free(p->msg);
 		free(p);
-		// p->msg->body = 0;
-		// p->msg = 0;
-		// p = 0;
 		numOfProcess--;
         }
 	}
@@ -568,19 +580,14 @@ char *killProcess(int pid, List *list)
 	return resultReport;
 }
 
-// with "e", killProcess the current running process.
-// UNDERSTOOD. ready to implement
-//IMPLEMENTED
 char *performExit()
 {
 	char *resultReport;
 	PCB *currentProcess;
-	// get the currentrunning process
 	currentProcess = List_last(runningQ);
 
 	if (currentProcess)
 	{
-		// remove the currently running pcb
 		currentProcess = List_trim(runningQ);
 		printf("pid:%i removed\n", currentProcess->pid);
 		// free memory
@@ -1078,68 +1085,52 @@ void performProcInfo(){
 //ORIGINAL
 void promptUser(){
 
-    // bool isInitProcessAlive = (List_count(runningQ)>0);
-    printf("isInitProcessAlive is %d", List_count(runningQ)>0);
     while(List_count(runningQ)>0){
 
-        printf("Enter command :");
+        printf("\nEnter command :");
         scanf("%c", &userInputCmd);
         userInputCmd = toupper(userInputCmd);
 
         if(userInputCmd =='C'){
             performCreate(); //DONE
-            // break;
         }
         else if(userInputCmd =='F'){
             resultReport = forkProcess();//DONE
-            // continue;
         }
         else if(userInputCmd =='K'){
             performKill();//DONEDONEDONE
-            // break;
         }
         else if(userInputCmd =='E'){
             performExit();//DONE
-            // break;
         }
         else if(userInputCmd =='Q'){
             performQuantum();//DONE
-            // break;
         }
         else if(userInputCmd =='S'){
             performSend();//DONE
-            // break;
         }
         else if(userInputCmd =='R'){
             performReceive();//DONE
-            // break;
         }
         else if(userInputCmd =='Y'){
             performReply();//NEED TO FIX stuff
-            // break;
         }
         else if(userInputCmd =='N'){
             performNewSemaphore();
-            // break;
         }
         else if(userInputCmd =='P'){
             performP();
-            // break;
         }
         else if(userInputCmd =='V'){
             performV();
-            // break;
         }
         else if(userInputCmd =='I'){
             performProcInfo();
-            // break;
         }
         else if(userInputCmd =='T'){
             totalinfo();
-            // break;
         }
         else{
-            // break;
         }
 
     }
